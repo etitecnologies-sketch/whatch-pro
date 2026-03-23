@@ -1,0 +1,161 @@
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import type { User } from '../types';
+import { supabase } from '../lib/supabase';
+
+interface AuthContextType {
+  user: User | null;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
+  logout: () => void;
+  isLoading: boolean;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const hasSupabase = !!supabaseUrl && !!supabaseKey && 
+                     !supabaseUrl.includes('SUA_URL') && 
+                     !supabaseUrl.includes('YOUR_URL');
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        if (hasSupabase) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            setUser({
+              id: session.user.id,
+              name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário',
+              email: session.user.email || '',
+              role: session.user.user_metadata?.role || 'user',
+              avatar: session.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${session.user.email}&background=random`
+            });
+          }
+
+          const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session?.user) {
+              setUser({
+                id: session.user.id,
+                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário',
+                email: session.user.email || '',
+                role: session.user.user_metadata?.role || 'user',
+                avatar: session.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${session.user.email}&background=random`
+              });
+            } else {
+              setUser(null);
+            }
+          });
+
+          return () => subscription.unsubscribe();
+        } else {
+          // Local storage fallback
+          const savedUser = localStorage.getItem('whatch_pro_user');
+          if (savedUser) {
+            setUser(JSON.parse(savedUser));
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao inicializar auth:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
+  }, [hasSupabase]);
+
+  const login = async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      if (hasSupabase) {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      } else {
+        // Mock login
+        await new Promise(resolve => setTimeout(resolve, 800));
+        const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]');
+        
+        if (allUsers.length === 0 && email === 'admin@whatchpro.com' && password === 'admin123') {
+          const adminUser: User = {
+            id: 'user_admin',
+            name: 'Super Admin',
+            email: 'admin@whatchpro.com',
+            role: 'admin',
+            avatar: `https://ui-avatars.com/api/?name=Super+Admin&background=random`
+          };
+          setUser(adminUser);
+          localStorage.setItem('whatch_pro_user', JSON.stringify(adminUser));
+          localStorage.setItem('whatch_pro_all_users', JSON.stringify([adminUser]));
+        } else {
+          const foundUser = allUsers.find(u => u.email === email);
+          if (foundUser) {
+             setUser(foundUser);
+             localStorage.setItem('whatch_pro_user', JSON.stringify(foundUser));
+          } else {
+             throw new Error('Usuário não encontrado. Use admin@whatchpro.com / admin123');
+          }
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const register = async (name: string, email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      if (hasSupabase) {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { name, role: 'user', avatar: `https://ui-avatars.com/api/?name=${name}&background=random` } }
+        });
+        if (error) throw error;
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 800));
+        const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]');
+        const newUser: User = {
+          id: 'user_' + Date.now(),
+          name,
+          email,
+          role: 'user',
+          avatar: `https://ui-avatars.com/api/?name=${name}&background=random`
+        };
+        const updatedUsers = [...allUsers, newUser];
+        localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedUsers));
+        setUser(newUser);
+        localStorage.setItem('whatch_pro_user', JSON.stringify(newUser));
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    if (hasSupabase) {
+      await supabase.auth.signOut();
+    } else {
+      setUser(null);
+      localStorage.removeItem('whatch_pro_user');
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
