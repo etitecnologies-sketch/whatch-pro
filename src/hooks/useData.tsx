@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Client, Employee, Product, Project, Transaction, FiscalDocument } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
+import { AsaasService } from '../lib/asaas';
 
 export function useData() {
   const { user } = useAuth();
@@ -14,6 +15,7 @@ export function useData() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('whatch_pro_last_sync'));
+  const [asaasToken] = useState(() => localStorage.getItem('whatch_pro_asaas_token') || '');
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const hasSupabase = !!supabaseUrl && !supabaseUrl.includes('SUA_URL') && !supabaseUrl.includes('YOUR_URL');
@@ -88,11 +90,50 @@ export function useData() {
     }
   }, [user, hasSupabase, loadLocalData, syncFromCloud]);
 
+  const syncClientWithAsaas = useCallback(async (client: Client) => {
+    if (!asaasToken) return null;
+    
+    const asaas = new AsaasService(asaasToken);
+    try {
+      // Check if client already exists in Asaas by CNPJ/CPF
+      const existing = await asaas.listClients({ cpfCnpj: client.cnpj });
+      if (existing.data && existing.data.length > 0) {
+        return existing.data[0].id;
+      }
+
+      // Create new client in Asaas
+      const newAsaasClient = await asaas.createClient({
+        name: client.name,
+        cpfCnpj: client.cnpj,
+        email: client.email,
+        phone: client.phone,
+        externalReference: client.id
+      });
+      return newAsaasClient.id;
+    } catch (error) {
+      console.error('Erro ao sincronizar cliente com Asaas:', error);
+      return null;
+    }
+  }, [asaasToken]);
+
   const saveData = async (table: string, data: any) => {
     if (!user) return;
 
     // 1. Update local state and storage immediately (Offline-first)
     saveLocalData(user.id, table, data);
+    
+    // Special handling for Asaas sync when a NEW client is added
+    if (table === 'clients' && Array.isArray(data)) {
+        const latestClient = data[data.length - 1];
+        if (latestClient && !latestClient.asaasId && asaasToken) {
+            const asaasId = await syncClientWithAsaas(latestClient);
+            if (asaasId) {
+                latestClient.asaasId = asaasId;
+                saveLocalData(user.id, 'clients', data);
+            }
+        }
+    }
+
     switch(table) {
         case 'clients': setClients(data); break;
         case 'employees': setEmployees(data); break;
@@ -124,6 +165,43 @@ export function useData() {
     }
   };
 
+  const generateAsaasBoleto = useCallback(async (transaction: Transaction, client: Client) => {
+    if (!asaasToken) throw new Error('Token do Asaas não configurado');
+    
+    const asaas = new AsaasService(asaasToken);
+    try {
+      // 1. Ensure client has asaasId
+      let asaasId = client.asaasId;
+      if (!asaasId) {
+        asaasId = await syncClientWithAsaas(client);
+        if (!asaasId) throw new Error('Não foi possível sincronizar o cliente com o Asaas');
+      }
+
+      // 2. Create payment
+      const payment = await asaas.createPayment({
+        customer: asaasId,
+        billingType: 'BOLETO',
+        value: transaction.amount,
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
+        description: transaction.description,
+        externalReference: transaction.id
+      });
+
+      // 3. Get identification field (linha digitável)
+      const identification = await asaas.getIdentificationField(payment.id);
+      
+      return {
+        paymentId: payment.id,
+        invoiceUrl: payment.invoiceUrl,
+        bankSlipUrl: payment.bankSlipUrl,
+        identificationField: identification.identificationField
+      };
+    } catch (error: any) {
+      console.error('Erro ao gerar boleto no Asaas:', error);
+      throw error;
+    }
+  }, [asaasToken, syncClientWithAsaas]);
+
   return {
     clients, setClients: (data: Client[]) => saveData('clients', data),
     employees, setEmployees: (data: Employee[]) => saveData('employees', data),
@@ -136,6 +214,7 @@ export function useData() {
     syncFromCloud,
     saveData,
     fiscalDocuments,
-    setFiscalDocuments
+    setFiscalDocuments,
+    generateAsaasBoleto
   };
 }

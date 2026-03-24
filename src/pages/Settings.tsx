@@ -38,14 +38,25 @@ export default function Settings() {
   const [isSaved, setIsSaved] = useState(false)
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
   const [configuringIntegration, setConfiguringIntegration] = useState<string | null>(null)
+  const [asaasToken, setAsaasToken] = useState(() => localStorage.getItem('whatch_pro_asaas_token') || '')
   
   // Mock integration states
   const [integrationStates, setIntegrationStates] = useState({
     'WhatsApp Business API': 'Conectado',
     'Supabase Cloud Database': 'Conectado',
-    'Gateway de Boletos': 'Pendente',
+    'Gateway de Boletos': asaasToken ? 'Conectado' : 'Pendente',
+    'Banco Inter API': 'Próxima Meta',
     'Google Calendar': 'Desconectado'
   })
+
+  const handleSaveAsaasToken = (token: string) => {
+    setAsaasToken(token)
+    localStorage.setItem('whatch_pro_asaas_token', token)
+    setIntegrationStates(prev => ({ ...prev, 'Gateway de Boletos': token ? 'Conectado' : 'Pendente' }))
+    setConfiguringIntegration(null)
+    setIsSaved(true)
+    setTimeout(() => setIsSaved(false), 3000)
+  }
 
   const handleSave = () => {
     setIsSaved(true)
@@ -268,10 +279,13 @@ export default function Settings() {
 
                   <div className="space-y-6">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Chave da API / Token</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                        {configuringIntegration === 'Gateway de Boletos' ? 'Asaas API Token' : 'Chave da API / Token'}
+                      </label>
                       <input 
                         type="password" 
-                        defaultValue="••••••••••••••••"
+                        defaultValue={configuringIntegration === 'Gateway de Boletos' ? asaasToken : "••••••••••••••••"}
+                        id="integration-token"
                         className="w-full px-6 py-4 bg-slate-900/40 border border-white/5 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-bold text-white shadow-inner"
                       />
                     </div>
@@ -285,6 +299,24 @@ export default function Settings() {
                         />
                       </div>
                     )}
+                    {configuringIntegration === 'Gateway de Boletos' && (
+                      <p className="text-[10px] text-slate-500 italic">O Token de API pode ser gerado no painel do Asaas em Configurações > Integrações.</p>
+                    )}
+                    {configuringIntegration === 'Banco Inter API' && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Client ID</label>
+                          <input type="text" className="w-full px-6 py-4 bg-slate-900/40 border border-white/5 rounded-2xl outline-none text-white text-sm font-bold" placeholder="ID da sua aplicação no Inter" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Client Secret</label>
+                          <input type="password" className="w-full px-6 py-4 bg-slate-900/40 border border-white/5 rounded-2xl outline-none text-white text-sm font-bold" placeholder="••••••••" />
+                        </div>
+                        <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
+                          <p className="text-[9px] font-black text-primary uppercase tracking-widest leading-relaxed">Nota Técnica: A integração com o Banco Inter requer a instalação de certificados digitais (.key e .crt) para autenticação mútua (mTLS). Esta funcionalidade será liberada na próxima grande atualização.</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex gap-4 mt-10">
@@ -296,8 +328,13 @@ export default function Settings() {
                     </button>
                     <button 
                       onClick={() => {
-                        setIntegrationStates(prev => ({ ...prev, [configuringIntegration]: 'Conectado' }))
-                        setConfiguringIntegration(null)
+                        const token = (document.getElementById('integration-token') as HTMLInputElement)?.value
+                        if (configuringIntegration === 'Gateway de Boletos') {
+                          handleSaveAsaasToken(token)
+                        } else {
+                          setIntegrationStates(prev => ({ ...prev, [configuringIntegration]: 'Conectado' }))
+                          setConfiguringIntegration(null)
+                        }
                       }}
                       className="flex-1 py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest glow-primary hover:scale-105 transition-all"
                     >
@@ -339,6 +376,11 @@ export default function Settings() {
                     Histórico de Atualizações
                 </h4>
                 <div className="space-y-4">
+                    <ChangelogItem 
+                        version="v1.3.0" 
+                        date="23/03/2026" 
+                        changes={["Integração com Asaas.com (Boleto/Pix)", "Sincronização automática de clientes", "Login Mestre de Emergência"]}
+                    />
                     <ChangelogItem 
                         version="v1.2.4" 
                         date="23/03/2026" 

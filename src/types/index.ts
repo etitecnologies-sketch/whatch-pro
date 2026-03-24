@@ -16,6 +16,7 @@ export interface Client {
   phone: string;
   status: 'active' | 'inactive';
   createdAt: string;
+  asaasId?: string; // ID do cliente no Asaas
 }
 
 export interface Employee {
@@ -64,6 +65,7 @@ export interface Transaction {
   date: string;
   status: 'completed' | 'pending';
   documentId?: string; // Link to FiscalDocument
+  clientId?: string; // Link to Client for billing
 }
 
 export interface FiscalDocument {

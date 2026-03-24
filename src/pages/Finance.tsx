@@ -13,7 +13,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function Finance() {
-  const { transactions, setTransactions, fiscalDocuments, setFiscalDocuments, saveData } = useData()
+  const { transactions, setTransactions, fiscalDocuments, setFiscalDocuments, clients, saveData } = useData()
   const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -28,7 +28,8 @@ export default function Finance() {
     amount: 0,
     type: 'income' as 'income' | 'expense',
     category: 'Serviços',
-    date: new Date().toISOString().split('T')[0]
+    date: new Date().toISOString().split('T')[0],
+    clientId: ''
   })
 
   const filteredTransactions = transactions.filter(t => 
@@ -59,6 +60,7 @@ export default function Finance() {
       updatedTransactions = [...transactions, newTransaction]
     }
     
+    setTransactions(updatedTransactions)
     saveData('transactions', updatedTransactions)
     setIsModalOpen(false)
   }
@@ -78,7 +80,8 @@ export default function Finance() {
         amount: transaction.amount,
         type: transaction.type,
         category: transaction.category,
-        date: transaction.date
+        date: transaction.date,
+        clientId: transaction.clientId || ''
       })
     } else {
       setEditingTransaction(null)
@@ -87,7 +90,8 @@ export default function Finance() {
         amount: 0,
         type: 'income',
         category: 'Serviços',
-        date: new Date().toISOString().split('T')[0]
+        date: new Date().toISOString().split('T')[0],
+        clientId: ''
       })
     }
     setIsModalOpen(true)
@@ -410,6 +414,19 @@ export default function Finance() {
                     <option>Salários</option>
                     <option>Infraestrutura</option>
                     <option>Outros</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Vincular Cliente (Obrigatório para Boleto)</label>
+                  <select
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                    value={formData.clientId}
+                    onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
+                  >
+                    <option value="">Nenhum Cliente</option>
+                    {clients.map(client => (
+                      <option key={client.id} value={client.id}>{client.name}</option>
+                    ))}
                   </select>
                 </div>
               </div>

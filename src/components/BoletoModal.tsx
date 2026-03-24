@@ -1,10 +1,11 @@
-import { X, Printer, Download, Share2, CheckCircle2, ShieldCheck, Zap, Barcode, FileText } from 'lucide-react'
+import { X, Printer, Download, Share2, CheckCircle2, ShieldCheck, Zap, Barcode, FileText, Loader2, ExternalLink } from 'lucide-react'
 import type { Transaction } from '../types'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
+import { useData } from '../hooks/useData'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -18,7 +19,36 @@ interface BoletoModalProps {
 
 export default function BoletoModal({ isOpen, onClose, transaction }: BoletoModalProps) {
   const [isExporting, setIsExporting] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [asaasData, setAsaasData] = useState<{
+    bankSlipUrl?: string;
+    invoiceUrl?: string;
+    identificationField?: string;
+  } | null>(null)
+  const { generateAsaasBoleto, clients } = useData()
   const contentRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (isOpen && transaction && !asaasData) {
+      handleGenerateRealBoleto()
+    }
+  }, [isOpen, transaction])
+
+  const handleGenerateRealBoleto = async () => {
+    const client = clients.find(c => c.id === transaction.clientId)
+    if (!client) return
+
+    try {
+      setIsGenerating(true)
+      const data = await generateAsaasBoleto(transaction, client)
+      setAsaasData(data)
+    } catch (error: any) {
+      console.error('Erro Asaas:', error)
+      // If fails, we keep showing the mock or show error
+    } finally {
+      setIsGenerating(false)
+    }
+  }
 
   if (!isOpen) return null
 
@@ -56,7 +86,7 @@ export default function BoletoModal({ isOpen, onClose, transaction }: BoletoModa
     }
   }
 
-  const boletoLine = "00190.00009 02714.450004 00001.910201 5 95640000100000"
+  const boletoLine = asaasData?.identificationField || "00190.00009 02714.450004 00001.910201 5 95640000100000"
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 print:p-0">
@@ -72,6 +102,17 @@ export default function BoletoModal({ isOpen, onClose, transaction }: BoletoModa
             <h2 className="text-lg font-black uppercase tracking-widest">Visualização de <span className="text-primary">Boleto</span></h2>
           </div>
           <div className="flex items-center gap-2">
+            {asaasData?.bankSlipUrl && (
+              <a 
+                href={asaasData.bankSlipUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="p-2 text-primary hover:bg-primary/10 rounded-xl transition-all flex items-center gap-2 text-[10px] font-black uppercase"
+              >
+                <ExternalLink size={16} />
+                Link Asaas
+              </a>
+            )}
             <button onClick={handlePrint} className="p-2 text-slate-500 hover:text-primary hover:bg-primary/10 rounded-xl transition-all">
               <Printer size={20} />
             </button>
