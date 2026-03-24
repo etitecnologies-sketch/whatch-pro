@@ -49,7 +49,7 @@ export default function Employees() {
       updatedEmployees = employees.map(e => e.id === editingEmployee.id ? { ...editingEmployee, ...formData } : e)
     } else {
       const newEmployee: Employee = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         userId: user.id,
         ...formData,
         status: 'active',

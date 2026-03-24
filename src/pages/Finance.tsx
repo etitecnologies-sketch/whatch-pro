@@ -52,7 +52,7 @@ export default function Finance() {
       updatedTransactions = transactions.map(t => t.id === editingTransaction.id ? { ...editingTransaction, ...formData } : t)
     } else {
       const newTransaction: Transaction = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         userId: user.id,
         ...formData,
         status: 'pending'

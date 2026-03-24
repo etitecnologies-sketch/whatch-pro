@@ -44,7 +44,7 @@ export default function Projects() {
       updatedProjects = projects.map(p => p.id === editingProject.id ? { ...editingProject, ...formData } : p)
     } else {
       const newProject: Project = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         userId: user.id,
         ...formData
       }

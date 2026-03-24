@@ -49,7 +49,7 @@ export default function Inventory() {
       updatedProducts = products.map(p => p.id === editingProduct.id ? { ...editingProduct, ...formData, status } : p)
     } else {
       const newProduct: Product = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         userId: user.id,
         ...formData,
         status

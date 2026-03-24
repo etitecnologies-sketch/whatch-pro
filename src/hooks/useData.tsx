@@ -146,10 +146,59 @@ export function useData() {
     // 2. Sync with Cloud (Supabase) if available
     if (hasSupabase && user && user.id !== 'master-id-000') {
       try {
-        // Prepare data for upsert (ensure userId is present on all items)
+        // Map frontend camelCase to database snake_case
+        const mapToDB = (item: any) => {
+          const mapped: any = { ...item };
+          
+          // Ensure user_id is set
+          mapped.user_id = user.id;
+          
+          // Basic mapping for all tables
+          if (mapped.userId) {
+            mapped.user_id = mapped.userId;
+            delete mapped.userId;
+          }
+          
+          // Table specific mappings
+          if (table === 'clients') {
+            if (mapped.asaasId) {
+              mapped.asaas_id = mapped.asaasId;
+              delete mapped.asaasId;
+            }
+            if (mapped.createdAt) {
+              mapped.created_at = mapped.createdAt;
+              delete mapped.createdAt;
+            }
+          }
+          
+          if (table === 'fiscal_documents') {
+            if (mapped.transactionId) {
+              mapped.transaction_id = mapped.transactionId;
+              delete mapped.transactionId;
+            }
+            if (mapped.issueDate) {
+              mapped.issue_date = mapped.issueDate;
+              delete mapped.issueDate;
+            }
+            if (mapped.accessKey) {
+              mapped.access_key = mapped.accessKey;
+              delete mapped.accessKey;
+            }
+          }
+
+          if (table === 'projects') {
+            if (mapped.clientId) {
+              mapped.client_id = mapped.clientId;
+              delete mapped.clientId;
+            }
+          }
+          
+          return mapped;
+        };
+
         const dataToSync = Array.isArray(data) 
-          ? data.map(item => ({ ...item, userId: user.id }))
-          : { ...data, userId: user.id };
+          ? data.map(item => mapToDB(item))
+          : mapToDB(data);
 
         const { error } = await supabase.from(table).upsert(dataToSync, { onConflict: 'id' });
         

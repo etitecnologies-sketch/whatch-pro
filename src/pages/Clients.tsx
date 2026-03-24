@@ -44,7 +44,7 @@ export default function Clients() {
       updatedClients = clients.map(c => c.id === editingClient.id ? { ...editingClient, ...formData } : c)
     } else {
       const newClient: Client = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         userId: user.id,
         ...formData,
         status: 'active',

@@ -51,7 +51,7 @@ export default function Users() {
       updatedUsers = users.map(u => u.id === editingUser.id ? { ...u, ...formData } : u)
     } else {
       const newUser: User = {
-        id: 'user_' + Date.now(),
+        id: crypto.randomUUID(),
         name: formData.name,
         email: formData.email,
         role: formData.role,
