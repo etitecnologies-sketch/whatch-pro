@@ -37,7 +37,7 @@ export function useData() {
 
   // Sync logic: Cloud -> Local (Pull)
   const syncFromCloud = useCallback(async () => {
-    if (!hasSupabase || !user) return;
+    if (!hasSupabase || !user || user.id === 'master-id-000') return;
     setIsSyncing(true);
     try {
       const [
@@ -143,8 +143,23 @@ export function useData() {
         case 'fiscal_documents': setFiscalDocuments(data); break;
     }
 
-    // 2. In a real production app, we would queue these for sync.
-    // For now, we rely on individual syncItem calls or manual sync.
+    // 2. Sync with Cloud (Supabase) if available
+    if (hasSupabase && user && user.id !== 'master-id-000') {
+      try {
+        // Prepare data for upsert (ensure userId is present on all items)
+        const dataToSync = Array.isArray(data) 
+          ? data.map(item => ({ ...item, userId: user.id }))
+          : { ...data, userId: user.id };
+
+        const { error } = await supabase.from(table).upsert(dataToSync, { onConflict: 'id' });
+        
+        if (error) {
+          console.error(`Erro ao sincronizar ${table} com a nuvem:`, error);
+        }
+      } catch (error) {
+        console.error(`Falha crítica no sync de ${table}:`, error);
+      }
+    }
   };
 
   const syncItem = async (table: string, item: any, action: 'insert' | 'update' | 'delete') => {

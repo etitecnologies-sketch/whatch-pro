@@ -88,25 +88,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [hasSupabase]);
 
   const login = async (email: string, password: string) => {
-    // 1. MASTER USER CHECK (HARDCODED)
-    if (email === 'mestre@whatchpro.com' && password === 'mestre2026') {
-      const masterUser: User = {
-        id: 'master-id-000',
-        name: 'Mestre Whatch Pro',
-        email: 'mestre@whatchpro.com',
-        role: 'admin',
-        avatar: `https://ui-avatars.com/api/?name=Mestre+Whatch+Pro&background=random`
-      };
-      setUser(masterUser);
-      localStorage.setItem('whatch_pro_user', JSON.stringify(masterUser));
-      return;
-    }
-
     setIsLoading(true);
     try {
+      // 1. MASTER USER CHECK (HARDCODED)
+      if (email === 'mestre@whatchpro.com' && password === 'mestre2026') {
+        const masterUser: User = {
+          id: 'master-id-000',
+          name: 'Mestre Whatch Pro',
+          email: 'mestre@whatchpro.com',
+          role: 'admin',
+          avatar: `https://ui-avatars.com/api/?name=Mestre+Whatch+Pro&background=random`
+        };
+        setUser(masterUser);
+        localStorage.setItem('whatch_pro_user', JSON.stringify(masterUser));
+        return;
+      }
+
       if (hasSupabase) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        if (data.user) {
+          const newUser = {
+            id: data.user.id,
+            name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Usuário',
+            email: data.user.email || '',
+            role: data.user.user_metadata?.role || 'user',
+            avatar: data.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${data.user.email}&background=random`
+          };
+          setUser(newUser);
+          localStorage.setItem('whatch_pro_user', JSON.stringify(newUser));
+        }
       } else {
         // Mock login
         await new Promise(resolve => setTimeout(resolve, 800));
@@ -142,12 +153,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       if (hasSupabase) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { name, role: 'user', avatar: `https://ui-avatars.com/api/?name=${name}&background=random` } }
+          options: { 
+            data: { 
+              name, 
+              role: 'user', 
+              avatar: `https://ui-avatars.com/api/?name=${name}&background=random` 
+            } 
+          }
         });
         if (error) throw error;
+        if (data.user) {
+          const newUser = {
+            id: data.user.id,
+            name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Usuário',
+            email: data.user.email || '',
+            role: data.user.user_metadata?.role || 'user',
+            avatar: data.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${data.user.email}&background=random`
+          };
+          setUser(newUser);
+          localStorage.setItem('whatch_pro_user', JSON.stringify(newUser));
+        }
       } else {
         await new Promise(resolve => setTimeout(resolve, 800));
         const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]');
@@ -169,11 +197,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    setUser(null);
-    localStorage.removeItem('whatch_pro_user');
     if (hasSupabase) {
       await supabase.auth.signOut();
     }
+    setUser(null);
+    localStorage.removeItem('whatch_pro_user');
   };
 
   return (
