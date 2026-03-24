@@ -57,35 +57,45 @@ export function useData() {
       ]);
 
       const mapFromDB = (item: any, table: string) => {
-        const mapped: any = { ...item };
-        if (mapped.user_id) {
-          mapped.userId = mapped.user_id;
-          delete mapped.user_id;
-        }
-        
-        if (table === 'clients') {
-          if (mapped.asaas_id) mapped.asaasId = mapped.asaas_id;
-          if (mapped.created_at) mapped.createdAt = mapped.created_at;
-          delete mapped.asaas_id;
-          delete mapped.created_at;
-        }
+          const mapped: any = { ...item };
+          if (mapped.user_id) {
+            mapped.userId = mapped.user_id;
+            delete mapped.user_id;
+          }
+          
+          if (table === 'clients') {
+            if (mapped.asaas_id) mapped.asaasId = mapped.asaas_id;
+            if (mapped.created_at) mapped.createdAt = mapped.created_at;
+            delete mapped.asaas_id;
+            delete mapped.created_at;
+          }
 
-        if (table === 'projects') {
-          if (mapped.client_id) mapped.clientId = mapped.client_id;
-          delete mapped.client_id;
-        }
+          if (table === 'employees') {
+            if (mapped.start_date) mapped.startDate = mapped.start_date;
+            delete mapped.start_date;
+          }
 
-        if (table === 'fiscal_documents') {
-          if (mapped.transaction_id) mapped.transactionId = mapped.transaction_id;
-          if (mapped.issue_date) mapped.issueDate = mapped.issue_date;
-          if (mapped.access_key) mapped.accessKey = mapped.access_key;
-          delete mapped.transaction_id;
-          delete mapped.issue_date;
-          delete mapped.access_key;
-        }
+          if (table === 'projects') {
+            if (mapped.client_id) mapped.clientId = mapped.client_id;
+            delete mapped.client_id;
+          }
 
-        return mapped;
-      };
+          if (table === 'inventory' || table === 'products') {
+            if (mapped.min_quantity) mapped.minQuantity = mapped.min_quantity;
+            delete mapped.min_quantity;
+          }
+
+          if (table === 'fiscal_documents') {
+            if (mapped.transaction_id) mapped.transactionId = mapped.transaction_id;
+            if (mapped.issue_date) mapped.issueDate = mapped.issue_date;
+            if (mapped.access_key) mapped.accessKey = mapped.access_key;
+            delete mapped.transaction_id;
+            delete mapped.issue_date;
+            delete mapped.access_key;
+          }
+
+          return mapped;
+        };
 
       if (clientsData && clientsData.length > 0) { 
         const mapped = clientsData.map(d => mapFromDB(d, 'clients'));
@@ -238,6 +248,20 @@ export function useData() {
             if (mapped.accessKey) {
               mapped.access_key = mapped.accessKey;
               delete mapped.accessKey;
+            }
+          }
+
+          if (table === 'employees') {
+            if (mapped.startDate) {
+              mapped.start_date = mapped.startDate;
+              delete mapped.startDate;
+            }
+          }
+
+          if (table === 'inventory' || table === 'products') {
+            if (mapped.minQuantity) {
+              mapped.min_quantity = mapped.minQuantity;
+              delete mapped.minQuantity;
             }
           }
 
