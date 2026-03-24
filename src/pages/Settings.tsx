@@ -357,7 +357,7 @@ export default function Settings() {
                     </div>
                     <div>
                         <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-widest leading-none mb-2">Whatch Pro OS</h4>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Versão Atual: <span className="text-primary">v1.2.4-stable</span></p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Versão Atual: <span className="text-primary">v1.3.0-stable</span></p>
                     </div>
                 </div>
                 <button 
