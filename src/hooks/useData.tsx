@@ -56,12 +56,67 @@ export function useData() {
         supabase.from('fiscal_documents').select('*')
       ]);
 
-      if (clientsData && clientsData.length > 0) { setClients(clientsData); saveLocalData(user.id, 'clients', clientsData); }
-      if (employeesData && employeesData.length > 0) { setEmployees(employeesData); saveLocalData(user.id, 'employees', employeesData); }
-      if (productsData && productsData.length > 0) { setProducts(productsData); saveLocalData(user.id, 'products', productsData); }
-      if (projectsData && projectsData.length > 0) { setProjects(projectsData); saveLocalData(user.id, 'projects', projectsData); }
-      if (transactionsData && transactionsData.length > 0) { setTransactions(transactionsData); saveLocalData(user.id, 'transactions', transactionsData); }
-      if (fiscalDocumentsData && fiscalDocumentsData.length > 0) { setFiscalDocuments(fiscalDocumentsData); saveLocalData(user.id, 'fiscal_documents', fiscalDocumentsData); }
+      const mapFromDB = (item: any, table: string) => {
+        const mapped: any = { ...item };
+        if (mapped.user_id) {
+          mapped.userId = mapped.user_id;
+          delete mapped.user_id;
+        }
+        
+        if (table === 'clients') {
+          if (mapped.asaas_id) mapped.asaasId = mapped.asaas_id;
+          if (mapped.created_at) mapped.createdAt = mapped.created_at;
+          delete mapped.asaas_id;
+          delete mapped.created_at;
+        }
+
+        if (table === 'projects') {
+          if (mapped.client_id) mapped.clientId = mapped.client_id;
+          delete mapped.client_id;
+        }
+
+        if (table === 'fiscal_documents') {
+          if (mapped.transaction_id) mapped.transactionId = mapped.transaction_id;
+          if (mapped.issue_date) mapped.issueDate = mapped.issue_date;
+          if (mapped.access_key) mapped.accessKey = mapped.access_key;
+          delete mapped.transaction_id;
+          delete mapped.issue_date;
+          delete mapped.access_key;
+        }
+
+        return mapped;
+      };
+
+      if (clientsData && clientsData.length > 0) { 
+        const mapped = clientsData.map(d => mapFromDB(d, 'clients'));
+        setClients(mapped); 
+        saveLocalData(user.id, 'clients', mapped); 
+      }
+      if (employeesData && employeesData.length > 0) { 
+        const mapped = employeesData.map(d => mapFromDB(d, 'employees'));
+        setEmployees(mapped); 
+        saveLocalData(user.id, 'employees', mapped); 
+      }
+      if (productsData && productsData.length > 0) { 
+        const mapped = productsData.map(d => mapFromDB(d, 'products'));
+        setProducts(mapped); 
+        saveLocalData(user.id, 'products', mapped); 
+      }
+      if (projectsData && projectsData.length > 0) { 
+        const mapped = projectsData.map(d => mapFromDB(d, 'projects'));
+        setProjects(mapped); 
+        saveLocalData(user.id, 'projects', mapped); 
+      }
+      if (transactionsData && transactionsData.length > 0) { 
+        const mapped = transactionsData.map(d => mapFromDB(d, 'transactions'));
+        setTransactions(mapped); 
+        saveLocalData(user.id, 'transactions', mapped); 
+      }
+      if (fiscalDocumentsData && fiscalDocumentsData.length > 0) { 
+        const mapped = fiscalDocumentsData.map(d => mapFromDB(d, 'fiscal_documents'));
+        setFiscalDocuments(mapped); 
+        saveLocalData(user.id, 'fiscal_documents', mapped); 
+      }
 
       const now = new Date().toLocaleString();
       setLastSync(now);
