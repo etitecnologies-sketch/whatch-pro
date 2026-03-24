@@ -410,6 +410,11 @@ export default function Settings() {
                 </h4>
                 <div className="space-y-4">
                     <ChangelogItem 
+                        version="PRÓXIMO PASSO" 
+                        date="ROADMAP 2026" 
+                        changes={["Integração com Banco Inter (API v2)", "Geração automática de boletos e recebimentos", "Conciliação bancária via mTLS"]}
+                    />
+                    <ChangelogItem 
                         version="v1.3.0" 
                         date="23/03/2026" 
                         changes={["Integração com Asaas.com (Boleto/Pix)", "Sincronização automática de clientes", "Login Mestre de Emergência"]}

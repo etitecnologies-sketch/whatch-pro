@@ -153,6 +153,29 @@ export default function Dashboard() {
           </table>
         </div>
       </div>
+
+      {/* Roadmap Section */}
+      <div className="glass p-8 rounded-[40px] shadow-2xl border border-primary/20 bg-primary/5 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity">
+          <Zap size={150} className="text-primary" />
+        </div>
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 bg-primary/20 rounded-2xl text-primary">
+              <Sparkles size={24} />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-widest leading-none mb-1">Próximo Passo</h3>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Roadmap de Desenvolvimento 2026</p>
+            </div>
+          </div>
+          <div className="p-6 rounded-3xl bg-slate-900/40 border border-white/5 backdrop-blur-md">
+            <p className="text-lg font-bold text-white leading-relaxed">
+              O nosso próximo passo é integrar ao sistema o <span className="text-primary glow-text">Banco Inter</span> para gerar boletos e recebimentos automáticos via API mTLS.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
