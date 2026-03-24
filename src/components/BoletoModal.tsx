@@ -1,4 +1,4 @@
-import { X, Printer, Download, Share2, CheckCircle2, ShieldCheck, Zap, Barcode } from 'lucide-react'
+import { X, Printer, Download, Share2, CheckCircle2, ShieldCheck, Zap, Barcode, FileText } from 'lucide-react'
 import type { Transaction } from '../types'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'

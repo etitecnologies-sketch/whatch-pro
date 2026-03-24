@@ -96,7 +96,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
   sidebarItems.push({ id: 'settings', icon: SettingsIcon, label: 'Configurações' })
 
   // Derived Notifications
-  const stockAlerts = products.filter(p => p.quantity <= p.min_quantity)
+  const stockAlerts = products.filter(p => p.quantity <= (p.minQuantity || 0))
   const pendingTransactions = transactions.filter(t => t.status === 'pending')
   const totalNotifications = stockAlerts.length + pendingTransactions.length
 
