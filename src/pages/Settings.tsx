@@ -42,9 +42,9 @@ export default function Settings() {
   
   // Mock integration states
   const [integrationStates, setIntegrationStates] = useState({
+    'Asaas Gateway': asaasToken ? 'Conectado' : 'Pendente',
     'WhatsApp Business API': 'Conectado',
     'Supabase Cloud Database': 'Conectado',
-    'Gateway de Boletos': asaasToken ? 'Conectado' : 'Pendente',
     'Banco Inter API': 'Próxima Meta',
     'Google Calendar': 'Desconectado'
   })
@@ -52,7 +52,7 @@ export default function Settings() {
   const handleSaveAsaasToken = (token: string) => {
     setAsaasToken(token)
     localStorage.setItem('whatch_pro_asaas_token', token)
-    setIntegrationStates(prev => ({ ...prev, 'Gateway de Boletos': token ? 'Conectado' : 'Pendente' }))
+    setIntegrationStates(prev => ({ ...prev, 'Asaas Gateway': token ? 'Conectado' : 'Pendente' }))
     setConfiguringIntegration(null)
     setIsSaved(true)
     setTimeout(() => setIsSaved(false), 3000)
@@ -251,16 +251,44 @@ export default function Settings() {
           </div>
         );
       case 'integrations':
+        const activeIntegrations = Object.entries(integrationStates).filter(([_, status]) => status !== 'Próxima Meta')
+        const futureIntegrations = Object.entries(integrationStates).filter(([_, status]) => status === 'Próxima Meta')
+
         return (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {Object.entries(integrationStates).map(([label, status]) => (
-              <IntegrationItem 
-                key={label} 
-                label={label} 
-                status={status} 
-                onConfigure={() => setConfiguringIntegration(label)}
-              />
-            ))}
+          <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-4 flex items-center gap-2">
+                <Zap size={14} className="text-primary" />
+                Integrações Ativas
+              </h4>
+              <div className="space-y-4">
+                {activeIntegrations.map(([label, status]) => (
+                  <IntegrationItem 
+                    key={label} 
+                    label={label} 
+                    status={status} 
+                    onConfigure={() => setConfiguringIntegration(label)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-4 flex items-center gap-2">
+                <Calendar size={14} />
+                Próximos Passos (Roadmap)
+              </h4>
+              <div className="space-y-4 opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-500">
+                {futureIntegrations.map(([label, status]) => (
+                  <IntegrationItem 
+                    key={label} 
+                    label={label} 
+                    status={status} 
+                    onConfigure={() => setConfiguringIntegration(label)}
+                  />
+                ))}
+              </div>
+            </div>
 
             {/* Integration Config Modal */}
             {configuringIntegration && (
@@ -280,11 +308,11 @@ export default function Settings() {
                   <div className="space-y-6">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
-                        {configuringIntegration === 'Gateway de Boletos' ? 'Asaas API Token' : 'Chave da API / Token'}
+                        {configuringIntegration === 'Asaas Gateway' ? 'Asaas API Token' : 'Chave da API / Token'}
                       </label>
                       <input 
                         type="password" 
-                        defaultValue={configuringIntegration === 'Gateway de Boletos' ? asaasToken : "••••••••••••••••"}
+                        defaultValue={configuringIntegration === 'Asaas Gateway' ? asaasToken : "••••••••••••••••"}
                         id="integration-token"
                         className="w-full px-6 py-4 bg-slate-900/40 border border-white/5 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-bold text-white shadow-inner"
                       />
@@ -299,18 +327,14 @@ export default function Settings() {
                         />
                       </div>
                     )}
-                    {configuringIntegration === 'Gateway de Boletos' && (
+                    {configuringIntegration === 'Asaas Gateway' && (
                       <p className="text-[10px] text-slate-500 italic">O Token de API pode ser gerado no painel do Asaas em Configurações > Integrações.</p>
                     )}
                     {configuringIntegration === 'Banco Inter API' && (
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Client ID</label>
-                          <input type="text" className="w-full px-6 py-4 bg-slate-900/40 border border-white/5 rounded-2xl outline-none text-white text-sm font-bold" placeholder="ID da sua aplicação no Inter" />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Client Secret</label>
-                          <input type="password" className="w-full px-6 py-4 bg-slate-900/40 border border-white/5 rounded-2xl outline-none text-white text-sm font-bold" placeholder="••••••••" />
+                          <input type="text" readOnly className="w-full px-6 py-4 bg-slate-900/20 border border-white/5 rounded-2xl outline-none text-white/50 text-sm font-bold" placeholder="Em desenvolvimento..." />
                         </div>
                         <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
                           <p className="text-[9px] font-black text-primary uppercase tracking-widest leading-relaxed">Nota Técnica: A integração com o Banco Inter requer a instalação de certificados digitais (.key e .crt) para autenticação mútua (mTLS). Esta funcionalidade será liberada na próxima grande atualização.</p>
@@ -326,20 +350,29 @@ export default function Settings() {
                     >
                       Cancelar
                     </button>
-                    <button 
-                      onClick={() => {
-                        const token = (document.getElementById('integration-token') as HTMLInputElement)?.value
-                        if (configuringIntegration === 'Gateway de Boletos') {
-                          handleSaveAsaasToken(token)
-                        } else {
-                          setIntegrationStates(prev => ({ ...prev, [configuringIntegration]: 'Conectado' }))
-                          setConfiguringIntegration(null)
-                        }
-                      }}
-                      className="flex-1 py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest glow-primary hover:scale-105 transition-all"
-                    >
-                      Salvar Conexão
-                    </button>
+                    {configuringIntegration !== 'Banco Inter API' ? (
+                      <button 
+                        onClick={() => {
+                          const token = (document.getElementById('integration-token') as HTMLInputElement)?.value
+                          if (configuringIntegration === 'Asaas Gateway') {
+                            handleSaveAsaasToken(token)
+                          } else {
+                            setIntegrationStates(prev => ({ ...prev, [configuringIntegration]: 'Conectado' }))
+                            setConfiguringIntegration(null)
+                          }
+                        }}
+                        className="flex-1 py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest glow-primary hover:scale-105 transition-all"
+                      >
+                        Salvar Conexão
+                      </button>
+                    ) : (
+                      <button 
+                        disabled
+                        className="flex-1 py-4 bg-slate-800 text-slate-500 rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
+                      >
+                        Em Breve
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -542,25 +575,40 @@ function ReportCard({ title, description, type }: { title: string, description: 
 }
 
 function IntegrationItem({ label, status, onConfigure }: { label: string, status: string, onConfigure: () => void }) {
+  const isFuture = status === 'Próxima Meta'
+  
   return (
-    <div className="flex items-center justify-between p-6 rounded-3xl bg-white/5 border border-white/5 hover:border-primary/20 transition-all group">
+    <div className={cn(
+      "flex items-center justify-between p-6 rounded-3xl bg-white/5 border border-white/5 transition-all group",
+      isFuture ? "hover:border-white/10" : "hover:border-primary/20"
+    )}>
       <div className="flex items-center gap-4">
-        <div className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-2xl group-hover:text-primary transition-colors shadow-inner">
+        <div className={cn(
+          "p-3 rounded-2xl transition-colors shadow-inner",
+          isFuture ? "bg-slate-800 text-slate-600" : "bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:text-primary"
+        )}>
           <Globe size={24} />
         </div>
-        <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">{label}</span>
+        <span className={cn(
+          "text-sm font-black uppercase tracking-widest",
+          isFuture ? "text-slate-500" : "text-slate-900 dark:text-white"
+        )}>{label}</span>
       </div>
       <div className="flex items-center gap-6">
         <span className={cn(
           "text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg",
           status === 'Conectado' ? "bg-green-500/10 text-green-500" : 
-          status === 'Pendente' ? "bg-amber-500/10 text-amber-500" : "bg-red-500/10 text-red-500"
+          status === 'Pendente' ? "bg-amber-500/10 text-amber-500" : 
+          status === 'Próxima Meta' ? "bg-primary/10 text-primary" : "bg-red-500/10 text-red-500"
         )}>{status}</span>
         <button 
           onClick={onConfigure}
-          className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
+          className={cn(
+            "text-[10px] font-black uppercase tracking-widest hover:underline",
+            isFuture ? "text-slate-500" : "text-primary"
+          )}
         >
-          Configurar
+          {isFuture ? 'Detalhes' : 'Configurar'}
         </button>
       </div>
     </div>
