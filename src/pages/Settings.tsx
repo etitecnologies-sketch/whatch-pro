@@ -328,7 +328,7 @@ export default function Settings() {
                       </div>
                     )}
                     {configuringIntegration === 'Asaas Gateway' && (
-                      <p className="text-[10px] text-slate-500 italic">O Token de API pode ser gerado no painel do Asaas em Configurações > Integrações.</p>
+                      <p className="text-[10px] text-slate-500 italic">O Token de API pode ser gerado no painel do Asaas em Configurações &gt; Integrações.</p>
                     )}
                     {configuringIntegration === 'Banco Inter API' && (
                       <div className="space-y-4">
