@@ -56,12 +56,12 @@ export function useData() {
         supabase.from('fiscal_documents').select('*')
       ]);
 
-      if (clientsData) { setClients(clientsData); saveLocalData(user.id, 'clients', clientsData); }
-      if (employeesData) { setEmployees(employeesData); saveLocalData(user.id, 'employees', employeesData); }
-      if (productsData) { setProducts(productsData); saveLocalData(user.id, 'products', productsData); }
-      if (projectsData) { setProjects(projectsData); saveLocalData(user.id, 'projects', projectsData); }
-      if (transactionsData) { setTransactions(transactionsData); saveLocalData(user.id, 'transactions', transactionsData); }
-      if (fiscalDocumentsData) { setFiscalDocuments(fiscalDocumentsData); saveLocalData(user.id, 'fiscal_documents', fiscalDocumentsData); }
+      if (clientsData && clientsData.length > 0) { setClients(clientsData); saveLocalData(user.id, 'clients', clientsData); }
+      if (employeesData && employeesData.length > 0) { setEmployees(employeesData); saveLocalData(user.id, 'employees', employeesData); }
+      if (productsData && productsData.length > 0) { setProducts(productsData); saveLocalData(user.id, 'products', productsData); }
+      if (projectsData && projectsData.length > 0) { setProjects(projectsData); saveLocalData(user.id, 'projects', projectsData); }
+      if (transactionsData && transactionsData.length > 0) { setTransactions(transactionsData); saveLocalData(user.id, 'transactions', transactionsData); }
+      if (fiscalDocumentsData && fiscalDocumentsData.length > 0) { setFiscalDocuments(fiscalDocumentsData); saveLocalData(user.id, 'fiscal_documents', fiscalDocumentsData); }
 
       const now = new Date().toLocaleString();
       setLastSync(now);
