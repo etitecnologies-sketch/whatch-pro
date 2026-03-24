@@ -25,6 +25,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        // Check if master user is already logged in via localStorage
+        const savedUser = localStorage.getItem('whatch_pro_user');
+        if (savedUser) {
+          const parsedUser = JSON.parse(savedUser);
+          if (parsedUser.email === 'mestre@whatchpro.com') {
+            setUser(parsedUser);
+            setIsLoading(false);
+            return;
+          }
+        }
+
         if (hasSupabase) {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
@@ -38,6 +49,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            // Don't overwrite if it's the master user
+            const currentSaved = localStorage.getItem('whatch_pro_user');
+            if (currentSaved) {
+              const parsed = JSON.parse(currentSaved);
+              if (parsed.email === 'mestre@whatchpro.com') return;
+            }
+
             if (session?.user) {
               setUser({
                 id: session.user.id,
@@ -70,6 +88,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [hasSupabase]);
 
   const login = async (email: string, password: string) => {
+    // 1. MASTER USER CHECK (HARDCODED)
+    if (email === 'mestre@whatchpro.com' && password === 'mestre2026') {
+      const masterUser: User = {
+        id: 'master-id-000',
+        name: 'Mestre Whatch Pro',
+        email: 'mestre@whatchpro.com',
+        role: 'admin',
+        avatar: `https://ui-avatars.com/api/?name=Mestre+Whatch+Pro&background=random`
+      };
+      setUser(masterUser);
+      localStorage.setItem('whatch_pro_user', JSON.stringify(masterUser));
+      return;
+    }
+
     setIsLoading(true);
     try {
       if (hasSupabase) {
@@ -137,11 +169,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    setUser(null);
+    localStorage.removeItem('whatch_pro_user');
     if (hasSupabase) {
       await supabase.auth.signOut();
-    } else {
-      setUser(null);
-      localStorage.removeItem('whatch_pro_user');
     }
   };
 
