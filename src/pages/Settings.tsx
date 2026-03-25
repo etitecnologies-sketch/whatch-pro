@@ -529,7 +529,7 @@ export default function Settings() {
                         </div>
 
                         <p className="text-[10px] text-slate-500 italic px-1">
-                          O Token de API pode ser gerado no painel do Asaas em <span className="text-slate-400 font-bold">Configurações > Integrações</span>.
+                          O Token de API pode ser gerado no painel do Asaas em <span className="text-slate-400 font-bold">Configurações &amp; Integrações</span>.
                         </p>
                       </div>
                     )}

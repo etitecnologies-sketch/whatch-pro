@@ -94,13 +94,13 @@ export default function Clients() {
       {/* Filters and Search */}
       <div className="glass p-6 rounded-[32px] border border-white/50 dark:border-slate-600/60 flex flex-col md:flex-row gap-6">
         <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 group-focus-within:text-primary transition-all duration-300" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-all duration-300" size={18} />
           <input
             type="text"
-            placeholder="Pesquisar por nome ou CNPJ..."
+            placeholder="Buscar por nome, e-mail ou CNPJ..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)
-            className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-slate-800/60 border border-white/50 dark:border-slate-600/60 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-medium placeholder:text-slate-600 dark:placeholder:text-slate-400 shadow-inner"
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-white/40 dark:bg-slate-900/40 border border-white/40 dark:border-slate-700/50 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-medium shadow-inner"
           />
         </div>
       </div>

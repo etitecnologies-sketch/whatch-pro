@@ -154,125 +154,139 @@ export default function BoletoModal({ isOpen, onClose, transaction }: BoletoModa
               </button>
             </div>
           ) : (
-            <div className="border-2 border-slate-900 p-8 space-y-8">
-            {/* Top Bar */}
-            <div className="flex items-center border-b-2 border-slate-900 pb-4">
-              <div className="pr-8 border-r-2 border-slate-900">
-                <h1 className="text-3xl font-black italic tracking-tighter">BANCO <span className="text-primary">WHATCH</span></h1>
-              </div>
-              <div className="px-8 border-r-2 border-slate-900">
-                <p className="text-2xl font-black">001-9</p>
-              </div>
-              <div className="flex-1 pl-8 text-right">
-                <p className="text-lg font-bold font-mono tracking-tight">{boletoLine}</p>
-              </div>
-            </div>
-
-            {/* Main Info */}
-            <div className="grid grid-cols-4 border-b-2 border-slate-900">
-              <div className="col-span-3 border-r-2 border-slate-900 p-3">
-                <p className="text-[8px] font-black uppercase mb-1">Local de Pagamento</p>
-                <p className="text-xs font-bold uppercase">Pagável em qualquer banco até o vencimento</p>
-              </div>
-              <div className="p-3">
-                <p className="text-[8px] font-black uppercase mb-1">Vencimento</p>
-                <p className="text-xs font-bold text-right">15/04/2026</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-4 border-b-2 border-slate-900">
-              <div className="col-span-3 border-r-2 border-slate-900 p-3">
-                <p className="text-[8px] font-black uppercase mb-1">Beneficiário</p>
-                <p className="text-xs font-bold uppercase">WHATCH PRO TECNOLOGIA LTDA - CNPJ: 00.000.000/0001-00</p>
-              </div>
-              <div className="p-3">
-                <p className="text-[8px] font-black uppercase mb-1">Agência/Código Beneficiário</p>
-                <p className="text-xs font-bold text-right">0001 / 123456-7</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-5 border-b-2 border-slate-900">
-              <div className="border-r-2 border-slate-900 p-3">
-                <p className="text-[8px] font-black uppercase mb-1">Data do Documento</p>
-                <p className="text-xs font-bold">{new Date().toLocaleDateString()}</p>
-              </div>
-              <div className="border-r-2 border-slate-900 p-3">
-                <p className="text-[8px] font-black uppercase mb-1">No. do Documento</p>
-                <p className="text-xs font-bold">{transaction.id.slice(-8)}</p>
-              </div>
-              <div className="border-r-2 border-slate-900 p-3">
-                <p className="text-[8px] font-black uppercase mb-1">Espécie Doc.</p>
-                <p className="text-xs font-bold">RC</p>
-              </div>
-              <div className="border-r-2 border-slate-900 p-3">
-                <p className="text-[8px] font-black uppercase mb-1">Aceite</p>
-                <p className="text-xs font-bold">N</p>
-              </div>
-              <div className="p-3">
-                <p className="text-[8px] font-black uppercase mb-1">Data Processamento</p>
-                <p className="text-xs font-bold text-right">{new Date().toLocaleDateString()}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-4 border-b-2 border-slate-900">
-              <div className="col-span-3 border-r-2 border-slate-900 p-6 space-y-4">
-                <p className="text-[8px] font-black uppercase">Instruções (Texto de responsabilidade do beneficiário)</p>
-                <div className="text-xs font-bold space-y-1">
-                  <p>REFERENTE A: {transaction.description.toUpperCase()}</p>
-                  <p>NÃO RECEBER APÓS 30 DIAS DO VENCIMENTO.</p>
-                  <p>MULTA DE 2% APÓS O VENCIMENTO + JUROS DE 1% AO MÊS.</p>
+            <>
+              <div className="border-2 border-slate-900 p-8 space-y-8">
+                {/* Top Bar */}
+                <div className="flex items-center border-b-2 border-slate-900 pb-4">
+                  <div className="pr-8 border-r-2 border-slate-900">
+                    <h1 className="text-3xl font-black italic tracking-tighter">BANCO <span className="text-primary">WHATCH</span></h1>
+                  </div>
+                  <div className="px-8 border-r-2 border-slate-900">
+                    <p className="text-2xl font-black">001-9</p>
+                  </div>
+                  <div className="flex-1 pl-8 text-right">
+                    <p className="text-lg font-bold font-mono tracking-tight">{boletoLine}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="divide-y-2 divide-slate-900">
+
+                {/* Main Info */}
+                <div className="grid grid-cols-4 border-b-2 border-slate-900">
+                  <div className="col-span-3 border-r-2 border-slate-900 p-3">
+                    <p className="text-[8px] font-black uppercase mb-1">Local de Pagamento</p>
+                    <p className="text-xs font-bold uppercase">Pagável em qualquer banco até o vencimento</p>
+                  </div>
+                  <div className="p-3">
+                    <p className="text-[8px] font-black uppercase mb-1">Vencimento</p>
+                    <p className="text-xs font-bold text-right">15/04/2026</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 border-b-2 border-slate-900">
+                  <div className="col-span-3 border-r-2 border-slate-900 p-3">
+                    <p className="text-[8px] font-black uppercase mb-1">Beneficiário</p>
+                    <p className="text-xs font-bold uppercase">WHATCH PRO TECNOLOGIA LTDA - CNPJ: 00.000.000/0001-00</p>
+                  </div>
+                  <div className="p-3">
+                    <p className="text-[8px] font-black uppercase mb-1">Agência/Código Beneficiário</p>
+                    <p className="text-xs font-bold text-right">0001 / 123456-7</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-5 border-b-2 border-slate-900">
+                  <div className="border-r-2 border-slate-900 p-3">
+                    <p className="text-[8px] font-black uppercase mb-1">Data do Documento</p>
+                    <p className="text-xs font-bold">{new Date().toLocaleDateString()}</p>
+                  </div>
+                  <div className="border-r-2 border-slate-900 p-3">
+                    <p className="text-[8px] font-black uppercase mb-1">Nº do Documento</p>
+                    <p className="text-xs font-bold uppercase">{transaction.id.split('-')[0]}</p>
+                  </div>
+                  <div className="border-r-2 border-slate-900 p-3">
+                    <p className="text-[8px] font-black uppercase mb-1">Espécie Doc.</p>
+                    <p className="text-xs font-bold uppercase">DS</p>
+                  </div>
+                  <div className="border-r-2 border-slate-900 p-3">
+                    <p className="text-[8px] font-black uppercase mb-1">Aceite</p>
+                    <p className="text-xs font-bold uppercase">N</p>
+                  </div>
+                  <div className="p-3">
+                    <p className="text-[8px] font-black uppercase mb-1">Data Processamento</p>
+                    <p className="text-xs font-bold text-right">{new Date().toLocaleDateString()}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-5 border-b-2 border-slate-900">
+                  <div className="border-r-2 border-slate-900 p-3">
+                    <p className="text-[8px] font-black uppercase mb-1">Uso do Banco</p>
+                    <p className="text-xs font-bold"></p>
+                  </div>
+                  <div className="border-r-2 border-slate-900 p-3">
+                    <p className="text-[8px] font-black uppercase mb-1">Carteira</p>
+                    <p className="text-xs font-bold uppercase">109</p>
+                  </div>
+                  <div className="border-r-2 border-slate-900 p-3">
+                    <p className="text-[8px] font-black uppercase mb-1">Espécie</p>
+                    <p className="text-xs font-bold uppercase">R$</p>
+                  </div>
+                  <div className="border-r-2 border-slate-900 p-3">
+                    <p className="text-[8px] font-black uppercase mb-1">Quantidade</p>
+                    <p className="text-xs font-bold"></p>
+                  </div>
+                  <div className="p-3">
+                    <p className="text-[8px] font-black uppercase mb-1">Valor</p>
+                    <p className="text-xs font-bold text-right"></p>
+                  </div>
+                </div>
+
+                {/* Instructions and Value */}
+                <div className="grid grid-cols-4 border-b-2 border-slate-900">
+                  <div className="col-span-3 border-r-2 border-slate-900 p-3 space-y-2">
+                    <p className="text-[8px] font-black uppercase mb-1">Instruções (Texto de Responsabilidade do Beneficiário)</p>
+                    <p className="text-[10px] font-bold uppercase">NÃO RECEBER APÓS O VENCIMENTO</p>
+                    <p className="text-[10px] font-bold uppercase">PROCESSO DE COBRANÇA WHATCH PRO OS - EMISSÃO AUTOMÁTICA</p>
+                    <p className="text-[10px] font-bold uppercase">REFERENTE A: {transaction.description}</p>
+                  </div>
+                  <div className="p-0">
+                    <div className="border-b-2 border-slate-900 p-3">
+                      <p className="text-[8px] font-black uppercase mb-1">(=) Valor do Documento</p>
+                      <p className="text-sm font-black text-right">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(transaction.amount)}</p>
+                    </div>
+                    <div className="p-3">
+                      <p className="text-[8px] font-black uppercase mb-1">(-) Descontos / Abatimentos</p>
+                      <p className="text-xs font-bold text-right">0,00</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payer Info */}
                 <div className="p-3">
-                  <p className="text-[8px] font-black uppercase mb-1">Valor do Documento</p>
-                  <p className="text-sm font-black text-right">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(transaction.amount)}
-                  </p>
+                  <p className="text-[8px] font-black uppercase mb-2">Pagador</p>
+                  <div className="text-xs font-bold ml-10">
+                    <p>CLIENTE FINAL WHATCH PRO - CPF/CNPJ: 000.000.000-00</p>
+                    <p>RUA DAS TECNOLOGIAS, 1000 - FUTURO</p>
+                    <p>SÃO PAULO - SP - 01001-000</p>
+                  </div>
                 </div>
-                <div className="p-3 bg-slate-50">
-                  <p className="text-[8px] font-black uppercase mb-1">(-) Descontos / Abatimentos</p>
-                </div>
-                <div className="p-3 bg-slate-50">
-                  <p className="text-[8px] font-black uppercase mb-1">(+) Mora / Multa</p>
-                </div>
-                <div className="p-3">
-                  <p className="text-[8px] font-black uppercase mb-1">(=) Valor Cobrado</p>
-                  <p className="text-sm font-black text-right">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(transaction.amount)}
-                  </p>
-                </div>
-              </div>
-            </div>
 
-            {/* Pagador */}
-            <div className="p-3">
-              <p className="text-[8px] font-black uppercase mb-2">Pagador</p>
-              <div className="text-xs font-bold ml-10">
-                <p>CLIENTE FINAL WHATCH PRO - CPF/CNPJ: 000.000.000-00</p>
-                <p>RUA DAS TECNOLOGIAS, 1000 - FUTURO</p>
-                <p>SÃO PAULO - SP - 01001-000</p>
+                {/* Barcode Mock */}
+                <div className="pt-10 flex flex-col items-center gap-4">
+                  <div className="w-full h-24 bg-slate-900 flex items-center justify-center relative overflow-hidden group">
+                    <div className="absolute inset-0 shimmer opacity-10"></div>
+                    <Barcode size="64" className="text-white" />
+                  </div>
+                  <p className="text-[10px] font-black tracking-[0.5em] text-slate-400">00190000090271445000400001910201595640000100000</p>
+                </div>
               </div>
-            </div>
-
-            {/* Barcode Mock */}
-            <div className="pt-10 flex flex-col items-center gap-4">
-              <div className="w-full h-24 bg-slate-900 flex items-center justify-center relative overflow-hidden group">
-                <div className="absolute inset-0 shimmer opacity-10"></div>
-                <Barcode size={64} className="text-white" />
+              
+              <div className="mt-8 flex items-center justify-between border-t-2 border-dashed border-slate-200 pt-8">
+                <div className="flex items-center gap-2 text-slate-400">
+                  <ShieldCheck size={16} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Autenticação Digital Whatch Pro Billing v1.0</span>
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase italic">Recibo do Pagador - Destaque aqui</p>
               </div>
-              <p className="text-[10px] font-black tracking-[0.5em] text-slate-400">00190000090271445000400001910201595640000100000</p>
-            </div>
-          </div>
-          
-          <div className="mt-8 flex items-center justify-between border-t-2 border-dashed border-slate-200 pt-8">
-            <div className="flex items-center gap-2 text-slate-400">
-              <ShieldCheck size={16} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Autenticação Digital Whatch Pro Billing v1.0</span>
-            </div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase italic">Recibo do Pagador - Destaque aqui</p>
-          </div>
-        )}
+            </>
+          )}
       </div>
     </div>
   </div>

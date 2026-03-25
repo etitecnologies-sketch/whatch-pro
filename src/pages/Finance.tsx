@@ -113,7 +113,9 @@ export default function Finance() {
     const message = `🚀 *WHATCH PRO - COBRANÇA DIGITAL*\n\nOlá! Identificamos uma pendência referente a: *${t.description}*\n\n💰 *Valor:* ${formattedAmount}\n📅 *Vencimento:* 15/04/2026\n\n🔗 *Acesse seu boleto aqui:* [LINK_SIMULADO]\n\n_Whatch Pro OS - Gestão Empresarial Futurista_`
     const encodedMessage = encodeURIComponent(message)
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank')
-  }async (t: Transaction, type: 'NF-e' | 'NFC-e' | 'Cupom') => {
+  }
+
+  const handleEmitFiscalDocument = async (t: Transaction, type: 'NF-e' | 'NFC-e' | 'Cupom') => {
     if (!user || !configuracaoSEFAZ) {
       alert('⚠️ Configure SEFAZ em Configurações → Receita Federal');
       return;
