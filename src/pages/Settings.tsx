@@ -523,38 +523,11 @@ export default function Settings() {
                             </button>
                           </div>
                         </div>
-                      </div>
-                    )}
-                            >
-                              Produção (Real)
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="p-4 rounded-2xl bg-slate-900/60 border border-white/5 space-y-3">
-                          <div className="flex items-start gap-3">
-                            <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
-                              Certifique-se de que o Token corresponde ao ambiente selecionado. Tokens de Sandbox não funcionam em Produção e vice-versa.
-                            </p>
-                          </div>
-                          <div className="pt-3 border-t border-white/5 flex items-center justify-between">
-                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Sincronização de Dados</span>
-                            <button 
-                              onClick={handleManualSync}
-                              disabled={isSyncingClients || !asaasToken}
-                              className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-xl transition-all disabled:opacity-50"
-                            >
-                              {isSyncingClients ? <Loader2 size={12} className="animate-spin text-primary" /> : <RefreshCw size={12} className="text-primary" />}
-                              <span className="text-[9px] font-black text-white uppercase tracking-widest">Sincronizar Agora</span>
-                            </button>
-                          </div>
-                        </div>
 
                         <p className="text-[10px] text-slate-500 italic px-1">
                           O Token de API pode ser gerado no painel do Asaas em <span className="text-slate-400 font-bold">Configurações &gt; Integrações</span>.
                         </p>
-                      </>
+                      </div>
                     )}
 
                     {configuringIntegration === 'NuvemFiscal NF-e' && (
