@@ -31,6 +31,7 @@ import { twMerge } from 'tailwind-merge'
 import { useAuth } from '../hooks/useAuth'
 import { useAppearance } from '../hooks/useAppearance'
 import { useData } from '../hooks/useData'
+import { supabase } from '../lib/supabase'
 import type { AsaasEnvironment } from '../lib/asaas'
 
 function cn(...inputs: ClassValue[]) {
@@ -96,7 +97,6 @@ export default function Settings() {
   const handleSaveAsaasConfig = async (token: string, env: AsaasEnvironment, proxy: boolean) => {
     try {
       if (proxy && user) {
-        // Multi-tenant: Save to Supabase table
         const { error } = await supabase
           .from('user_integrations')
           .upsert({ 
@@ -177,6 +177,11 @@ export default function Settings() {
       setIsCheckingUpdate(false)
       alert('Sua versão v1.3.0 está atualizada!\n\nNovidades:\n- Sistema de Orçamentos Dinâmicos\n- Gestão de Custos, Margens e Impostos no Estoque\n- Controle de Permissões Granulares por Admin\n- Multi-tenancy: Ambientes Totalmente Isolados\n- Melhorias na Performance de Sincronização')
     }, 2000)
+  }
+
+  const handleSave = () => {
+    setIsSaved(true)
+    setTimeout(() => setIsSaved(false), 3000)
   }
 
   const sections = [
@@ -402,7 +407,6 @@ export default function Settings() {
               </div>
             </div>
 
-            {/* Integration Config Modal */}
             {configuringIntegration && (
               <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
                 <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setConfiguringIntegration(null)} />
@@ -525,7 +529,7 @@ export default function Settings() {
                         </div>
 
                         <p className="text-[10px] text-slate-500 italic px-1">
-                          O Token de API pode ser gerado no painel do Asaas em <span className="text-slate-400 font-bold">Configurações &gt; Integrações</span>.
+                          O Token de API pode ser gerado no painel do Asaas em <span className="text-slate-400 font-bold">Configurações > Integrações</span>.
                         </p>
                       </div>
                     )}
