@@ -7,7 +7,9 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  createSubUser: (name: string, email: string, password: string) => Promise<void>;
   isLoading: boolean;
+  canAccess: (permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,7 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               id: session.user.id,
               name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário',
               email: session.user.email || '',
-              role: session.user.user_metadata?.role || 'user',
+              role: session.user.user_metadata?.role || 'admin',
+              adminId: session.user.user_metadata?.adminId,
+              permissions: session.user.user_metadata?.permissions,
               avatar: session.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${session.user.email}&background=random`
             });
           }
@@ -61,7 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 id: session.user.id,
                 name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário',
                 email: session.user.email || '',
-                role: session.user.user_metadata?.role || 'user',
+                role: session.user.user_metadata?.role || 'admin',
+                adminId: session.user.user_metadata?.adminId,
+                permissions: session.user.user_metadata?.permissions,
                 avatar: session.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${session.user.email}&background=random`
               });
             } else {
@@ -204,8 +210,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('whatch_pro_user');
   };
 
+  const createSubUser = async (name: string, email: string, password: string) => {
+    if (!user || user.role !== 'admin') throw new Error('Apenas administradores podem criar sub-usuários');
+    
+    setIsLoading(true);
+    try {
+      if (hasSupabase) {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { 
+            data: { 
+              name, 
+              role: 'sub-user',
+              adminId: user.id, // Vínculo com o admin atual
+              permissions: ['clients', 'inventory', 'quotations', 'appearance'], // Permissões padrão solicitadas
+              avatar: `https://ui-avatars.com/api/?name=${name}&background=random` 
+            } 
+          }
+        });
+        if (error) throw error;
+        console.log('Sub-usuário criado com sucesso:', data.user?.id);
+      } else {
+        // Mock local storage creation
+        const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]');
+        const newUser: User = {
+          id: 'sub_' + Date.now(),
+          name,
+          email,
+          role: 'sub-user',
+          adminId: user.id,
+          permissions: ['clients', 'inventory', 'quotations', 'appearance'],
+          avatar: `https://ui-avatars.com/api/?name=${name}&background=random`
+        };
+        localStorage.setItem('whatch_pro_all_users', JSON.stringify([...allUsers, newUser]));
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const canAccess = (permission: string) => {
+    if (!user) return false;
+    if (user.role === 'admin' || user.id === 'master-id-000') return true;
+    return user.permissions?.includes(permission) || false;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, createSubUser, canAccess, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

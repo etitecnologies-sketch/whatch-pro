@@ -1,4 +1,4 @@
-import { X, Printer, Download, Share2, CheckCircle2, ShieldCheck, Zap, Barcode, FileText, Loader2, ExternalLink } from 'lucide-react'
+import { X, Printer, Download, Share2, CheckCircle2, ShieldCheck, Zap, Barcode, FileText, Loader2, ExternalLink, AlertTriangle, RefreshCw } from 'lucide-react'
 import type { Transaction } from '../types'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -25,6 +25,7 @@ export default function BoletoModal({ isOpen, onClose, transaction }: BoletoModa
     invoiceUrl?: string;
     identificationField?: string;
   } | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const { generateAsaasBoleto, clients } = useData()
   const contentRef = useRef<HTMLDivElement>(null)
 
@@ -36,15 +37,19 @@ export default function BoletoModal({ isOpen, onClose, transaction }: BoletoModa
 
   const handleGenerateRealBoleto = async () => {
     const client = clients.find(c => c.id === transaction.clientId)
-    if (!client) return
+    if (!client) {
+      setError('Cliente não encontrado para esta transação.')
+      return
+    }
 
     try {
       setIsGenerating(true)
+      setError(null)
       const data = await generateAsaasBoleto(transaction, client)
       setAsaasData(data)
-    } catch (error: any) {
-      console.error('Erro Asaas:', error)
-      // If fails, we keep showing the mock or show error
+    } catch (err: any) {
+      console.error('Erro Asaas:', err)
+      setError(err.message || 'Ocorreu um erro ao gerar o boleto no Asaas. Verifique sua conexão e o token de API.')
     } finally {
       setIsGenerating(false)
     }
@@ -127,7 +132,29 @@ export default function BoletoModal({ isOpen, onClose, transaction }: BoletoModa
 
         {/* Boleto Content */}
         <div ref={contentRef} className="flex-1 overflow-y-auto p-10 bg-white">
-          <div className="border-2 border-slate-900 p-8 space-y-8">
+          {isGenerating ? (
+            <div className="flex flex-col items-center justify-center h-full min-h-[400px] space-y-4 text-center">
+              <Loader2 size={48} className="text-primary animate-spin" />
+              <h3 className="text-xl font-black uppercase tracking-widest text-slate-900">Gerando Boleto</h3>
+              <p className="text-sm text-slate-500 max-w-md leading-relaxed">Estamos preparando o seu boleto com segurança via Asaas...</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center h-full space-y-4 text-center">
+              <div className="p-4 bg-red-50 text-red-500 rounded-3xl">
+                <AlertTriangle size={48} />
+              </div>
+              <h3 className="text-xl font-black uppercase tracking-widest text-slate-900">Erro na Geração</h3>
+              <p className="text-sm text-slate-500 max-w-md leading-relaxed">{error}</p>
+              <button 
+                onClick={handleGenerateRealBoleto}
+                className="mt-4 px-8 py-3 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest glow-primary hover:scale-105 transition-all flex items-center gap-2"
+              >
+                <RefreshCw size={14} />
+                Tentar Novamente
+              </button>
+            </div>
+          ) : (
+            <div className="border-2 border-slate-900 p-8 space-y-8">
             {/* Top Bar */}
             <div className="flex items-center border-b-2 border-slate-900 pb-4">
               <div className="pr-8 border-r-2 border-slate-900">
@@ -245,8 +272,9 @@ export default function BoletoModal({ isOpen, onClose, transaction }: BoletoModa
             </div>
             <p className="text-[10px] font-bold text-slate-400 uppercase italic">Recibo do Pagador - Destaque aqui</p>
           </div>
-        </div>
+        )}
       </div>
     </div>
-  )
+  </div>
+)
 }

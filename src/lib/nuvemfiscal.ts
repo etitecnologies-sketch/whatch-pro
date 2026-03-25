@@ -1,8 +1,4 @@
-/**
- * NuvemFiscal API Integration - Integrador Híbrido de NF-e
- * Simplifica integração sem necessidade de certificado local
- * Suporta: NF-e, NFC-e, Cupom Fiscal e Homologação
- */
+import { supabase } from './supabase';
 
 export interface NuvemFiscalConfig {
   apiKey: string;
@@ -109,12 +105,40 @@ export interface NuvemFiscalResponse {
 export class NuvemFiscalService {
   private config: NuvemFiscalConfig;
   private baseURL: string;
+  private useProxy: boolean;
 
-  constructor(config: NuvemFiscalConfig) {
+  constructor(config: NuvemFiscalConfig, useProxy: boolean = false) {
     this.config = config;
+    this.useProxy = useProxy;
     this.baseURL = config.environment === 'sandbox' 
       ? 'https://api.sandbox.nuvemfiscal.com.br/v1'
       : 'https://api.nuvemfiscal.com.br/v1';
+  }
+
+  private async request(endpoint: string, method: string = 'GET', body?: any) {
+    if (this.useProxy) {
+      const { data, error } = await supabase.functions.invoke('fiscal-proxy', {
+        body: { endpoint: `/v1${endpoint}`, method, body }
+      });
+      if (error) throw new Error(`Erro Proxy Fiscal: ${error.message}`);
+      return data;
+    }
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method,
+      headers: {
+        'Authorization': `Bearer ${this.config.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Erro NuvemFiscal: ${error.errors?.[0]?.message || 'Desconhecido'}`);
+    }
+
+    return response.json();
   }
 
   /**
@@ -122,26 +146,10 @@ export class NuvemFiscalService {
    */
   async emitirNFe(nfe: NuvemFiscalNFe): Promise<NuvemFiscalResponse> {
     try {
-      const response = await fetch(`${this.baseURL}/nfe`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.config.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(nfe),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(`Erro NuvemFiscal: ${error.errors?.[0]?.message || 'Desconhecido'}`);
-      }
-
-      const data = await response.json();
-
+      const data = await this.request('/nfe', 'POST', nfe);
       if (this.config.enableDebug) {
         console.log('✅ NF-e emitida com sucesso:', data.chave_acesso);
       }
-
       return data;
     } catch (error) {
       console.error('❌ Erro ao emitir NF-e:', error);
@@ -154,21 +162,10 @@ export class NuvemFiscalService {
    */
   async cancelarNFe(chaveAcesso: string, justificativa: string): Promise<{ status: string; protocolo: string }> {
     try {
-      const response = await fetch(`${this.baseURL}/nfe/${chaveAcesso}/cancelamento`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.config.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ justificativa, sequencial_cancelamento: 1 }),
-      });
-
-      const data = await response.json();
-
+      const data = await this.request(`/nfe/${chaveAcesso}/cancelamento`, 'POST', { justificativa, sequencial_cancelamento: 1 });
       if (this.config.enableDebug) {
         console.log('✅ NF-e cancelada:', chaveAcesso);
       }
-
       return data;
     } catch (error) {
       console.error('❌ Erro ao cancelar NF-e:', error);
@@ -181,16 +178,7 @@ export class NuvemFiscalService {
    */
   async consultarStatus(id: string): Promise<NuvemFiscalResponse> {
     try {
-      const response = await fetch(`${this.baseURL}/nfe/${id}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.config.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-      return data;
+      return await this.request(`/nfe/${id}`, 'GET');
     } catch (error) {
       console.error('❌ Erro ao consultar status:', error);
       throw error;

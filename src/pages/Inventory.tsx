@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Plus, Search, Package, AlertTriangle, ArrowUpRight, ArrowDownLeft, Edit2, Trash2, X, DollarSign, Layers } from 'lucide-react'
-import type { Product } from '../types'
+import { Plus, Search, Package, AlertTriangle, ArrowUpRight, ArrowDownLeft, Edit2, Trash2, X, DollarSign, Layers, FileText } from 'lucide-react'
+import type { Product, Quotation, QuotationItem } from '../types'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useData } from '../hooks/useData'
@@ -11,11 +11,16 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function Inventory() {
-  const { products, setProducts, saveData } = useData()
+  const { products, setProducts, saveData, clients, quotations, setQuotations } = useData()
   const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  
+  // Quotation State
+  const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false)
+  const [selectedClient, setSelectedClient] = useState('')
+  const [quotationItems, setQuotationItems] = useState<QuotationItem[]>([])
 
   const [formData, setFormData] = useState({
     name: '',
@@ -23,8 +28,32 @@ export default function Inventory() {
     category: 'Informática',
     quantity: 0,
     minQuantity: 0,
+    costPrice: 0,
+    margin: 0,
+    taxRate: 0,
     price: 0
   })
+
+  // Calculate final price automatically
+  const calculateFinalPrice = (cost: number, margin: number, taxes: number) => {
+    const totalPercentage = (margin + taxes) / 100
+    return cost * (1 + totalPercentage)
+  }
+
+  const handlePriceChange = (field: string, value: number) => {
+    const newFormData = { ...formData, [field]: value }
+    
+    // If cost, margin or taxRate changed, recalculate price
+    if (['costPrice', 'margin', 'taxRate'].includes(field)) {
+      newFormData.price = calculateFinalPrice(
+        field === 'costPrice' ? value : formData.costPrice,
+        field === 'margin' ? value : formData.margin,
+        field === 'taxRate' ? value : formData.taxRate
+      )
+    }
+    
+    setFormData(newFormData)
+  }
 
   const filteredProducts = products.filter(product => 
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -46,11 +75,12 @@ export default function Inventory() {
 
     let updatedProducts: Product[] = []
     if (editingProduct) {
-      updatedProducts = products.map(p => p.id === editingProduct.id ? { ...editingProduct, ...formData, status } : p)
+      updatedProducts = products.map(p => p.id === editingProduct.id ? { ...p, ...formData, status } : p)
     } else {
       const newProduct: Product = {
         id: crypto.randomUUID(),
         userId: user.id,
+        adminId: user.adminId || user.id,
         ...formData,
         status
       }
@@ -70,13 +100,67 @@ export default function Inventory() {
         category: product.category,
         quantity: product.quantity,
         minQuantity: product.minQuantity,
+        costPrice: product.costPrice || 0,
+        margin: product.margin || 0,
+        taxRate: product.taxRate || 0,
         price: product.price
       })
     } else {
       setEditingProduct(null)
-      setFormData({ name: '', sku: '', category: 'Informática', quantity: 0, minQuantity: 0, price: 0 })
+      setFormData({ 
+        name: '', 
+        sku: '', 
+        category: 'Informática', 
+        quantity: 0, 
+        minQuantity: 0, 
+        costPrice: 0, 
+        margin: 0, 
+        taxRate: 0, 
+        price: 0 
+      })
     }
     setIsModalOpen(true)
+  }
+
+  const handleAddToQuotation = (product: Product) => {
+    const existing = quotationItems.find(item => item.productId === product.id)
+    if (existing) {
+      setQuotationItems(quotationItems.map(item => 
+        item.productId === product.id ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price } : item
+      ))
+    } else {
+      setQuotationItems([...quotationItems, {
+        productId: product.id,
+        name: product.name,
+        quantity: 1,
+        price: product.price,
+        total: product.price
+      }])
+    }
+    setIsQuotationModalOpen(true)
+  }
+
+  const handleSaveQuotation = () => {
+    if (!user || !selectedClient || quotationItems.length === 0) return
+
+    const totalAmount = quotationItems.reduce((acc, item) => acc + item.total, 0)
+    const newQuotation: Quotation = {
+      id: crypto.randomUUID(),
+      userId: user.id,
+      adminId: user.adminId || user.id,
+      clientId: selectedClient,
+      items: quotationItems,
+      totalAmount,
+      status: 'draft',
+      validUntil: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+      createdAt: new Date().toISOString()
+    }
+
+    saveData('quotations', [...quotations, newQuotation])
+    setIsQuotationModalOpen(false)
+    setQuotationItems([])
+    setSelectedClient('')
+    alert('Orçamento gerado com sucesso!')
   }
 
   const totalValue = products.reduce((acc, p) => acc + (p.price * p.quantity), 0)
@@ -148,7 +232,8 @@ export default function Inventory() {
                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Produto</th>
                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Categoria</th>
                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Qtd / Mínima</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Preço Unit.</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Custo / Venda</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Margem</th>
                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Status</th>
                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300 text-right">Ações</th>
               </tr>
@@ -178,8 +263,21 @@ export default function Inventory() {
                         <span className="text-[10px] font-bold text-slate-400 uppercase">Mín: {product.minQuantity}</span>
                     </div>
                   </td>
-                  <td className="px-8 py-6 text-sm font-mono font-bold text-slate-900 dark:text-white">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
+                  <td className="px-8 py-6">
+                    <div className="flex flex-col">
+                        <span className="text-sm font-bold text-slate-400 line-through decoration-slate-300">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.costPrice || 0)}
+                        </span>
+                        <span className="text-sm font-mono font-black text-primary">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
+                        </span>
+                    </div>
+                  </td>
+                  <td className="px-8 py-6">
+                    <div className="flex flex-col">
+                        <span className="text-sm font-black text-green-500">+{product.margin || 0}%</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Imp: {product.taxRate || 0}%</span>
+                    </div>
                   </td>
                   <td className="px-8 py-6">
                     <span className={cn(
@@ -193,6 +291,13 @@ export default function Inventory() {
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => handleAddToQuotation(product)}
+                        className="p-3 text-slate-500 hover:text-primary hover:bg-primary/10 rounded-2xl transition-all border border-transparent hover:border-primary/20"
+                        title="Adicionar ao Orçamento"
+                      >
+                        <FileText size={18} />
+                      </button>
                       <button 
                         onClick={() => openModal(product)}
                         className="p-3 text-slate-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-2xl transition-all border border-transparent hover:border-blue-500/20"
@@ -241,6 +346,68 @@ export default function Inventory() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Preço de Custo (R$)</label>
+                  <input 
+                    type="number" 
+                    value={formData.costPrice}
+                    onChange={e => handlePriceChange('costPrice', parseFloat(e.target.value) || 0)}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Margem de Lucro (%)</label>
+                  <input 
+                    type="number" 
+                    value={formData.margin}
+                    onChange={e => handlePriceChange('margin', parseFloat(e.target.value) || 0)}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                    placeholder="20"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Impostos (%)</label>
+                  <input 
+                    type="number" 
+                    value={formData.taxRate}
+                    onChange={e => handlePriceChange('taxRate', parseFloat(e.target.value) || 0)}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                    placeholder="10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Preço Final de Venda</label>
+                  <input 
+                    type="number" 
+                    value={formData.price}
+                    onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-4 py-3 bg-primary/5 dark:bg-primary/10 border-2 border-primary/20 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-black text-primary shadow-inner"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              {/* Profit Preview */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lucro Bruto Estimado</p>
+                  <p className="text-lg font-black text-green-500">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(formData.price - formData.costPrice - (formData.costPrice * formData.taxRate / 100))}
+                  </p>
+                </div>
+                <div className="text-right">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mark-up Total</p>
+                    <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                        {formData.costPrice > 0 ? (((formData.price / formData.costPrice) - 1) * 100).toFixed(1) : 0}%
+                    </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">SKU / Código</label>
                   <input 
                     type="text" 
@@ -251,13 +418,17 @@ export default function Inventory() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Preço Unitário</label>
-                  <input 
-                    type="number" 
-                    value={formData.price}
-                    onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
-                  />
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Categoria</label>
+                  <select 
+                    value={formData.category}
+                    onChange={e => setFormData({ ...formData, category: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner appearance-none"
+                  >
+                    <option value="Informática">Informática</option>
+                    <option value="Eletrônicos">Eletrônicos</option>
+                    <option value="Acessórios">Acessórios</option>
+                    <option value="Serviços">Serviços</option>
+                  </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -295,6 +466,98 @@ export default function Inventory() {
               >
                 Salvar Produto
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quotation Modal */}
+      {isQuotationModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setIsQuotationModalOpen(false)} />
+          <div className="relative w-full max-w-2xl glass rounded-[40px] border border-white/20 p-10 shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="p-4 bg-primary/10 text-primary rounded-2xl">
+                  <FileText size={32} />
+                </div>
+                <div>
+                  <h4 className="text-xl font-black text-white uppercase tracking-widest leading-none mb-2">Novo <span className="text-primary">Orçamento</span></h4>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Geração de proposta comercial</p>
+                </div>
+              </div>
+              <button onClick={() => setIsQuotationModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Selecionar Cliente</label>
+                <select 
+                  value={selectedClient}
+                  onChange={(e) => setSelectedClient(e.target.value)}
+                  className="w-full px-6 py-4 bg-slate-900/40 border border-white/5 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-bold text-white shadow-inner appearance-none"
+                >
+                  <option value="">Selecione um cliente...</option>
+                  {clients.map(client => (
+                    <option key={client.id} value={client.id}>{client.name} - {client.cnpj}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Itens do Orçamento</label>
+                <div className="max-h-[300px] overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                  {quotationItems.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl group">
+                      <div>
+                        <p className="text-sm font-black text-white">{item.name}</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">
+                          {item.quantity}x {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <p className="text-sm font-mono font-bold text-primary">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total)}
+                        </p>
+                        <button 
+                          onClick={() => setQuotationItems(quotationItems.filter((_, i) => i !== index))}
+                          className="p-2 text-slate-500 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-white/10 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total do Orçamento</p>
+                  <h3 className="text-2xl font-black text-white">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                      quotationItems.reduce((acc, item) => acc + item.total, 0)
+                    )}
+                  </h3>
+                </div>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setIsQuotationModalOpen(false)}
+                    className="px-6 py-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={handleSaveQuotation}
+                    disabled={!selectedClient || quotationItems.length === 0}
+                    className="px-8 py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest glow-primary hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100"
+                  >
+                    Gerar Proposta
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

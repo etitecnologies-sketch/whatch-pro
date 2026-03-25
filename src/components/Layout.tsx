@@ -45,7 +45,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [showSyncToast, setShowSyncToast] = useState(false)
-  const { user, logout } = useAuth()
+  const { user, logout, canAccess } = useAuth()
   const { isSyncing, lastSync, syncFromCloud, products, transactions } = useData()
   const [currentTime, setCurrentTime] = useState(new Date())
   const notificationRef = useRef<HTMLDivElement>(null)
@@ -85,11 +85,15 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     { id: 'employees', icon: UsersIcon, label: 'Funcionários' },
     { id: 'inventory', icon: Package, label: 'Estoque' },
     { id: 'projects', icon: Briefcase, label: 'Projetos' },
+    { id: 'quotations', icon: FileCheck, label: 'Orçamentos' },
     { id: 'finance', icon: DollarSign, label: 'Financeiro' },
     { id: 'documents', icon: FileCheck, label: 'Documentos' },
-  ]
+  ].filter(item => {
+    if (item.id === 'dashboard') return true;
+    return canAccess(item.id);
+  })
 
-  if (user?.role === 'admin') {
+  if (user?.role === 'admin' || user?.id === 'master-id-000') {
     sidebarItems.push({ id: 'users', icon: ShieldCheck, label: 'Usuários' })
   }
 

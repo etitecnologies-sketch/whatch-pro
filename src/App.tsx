@@ -7,6 +7,7 @@ import Inventory from './pages/Inventory'
 import Projects from './pages/Projects'
 import Finance from './pages/Finance'
 import Documents from './pages/Documents'
+import Quotations from './pages/Quotations'
 import Users from './pages/Users'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
@@ -14,7 +15,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth'
 import { AppearanceProvider } from './hooks/useAppearance'
 
 function AppContent() {
-  const { user, isLoading } = useAuth()
+  const { user, isLoading, canAccess } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard')
 
   if (isLoading) {
@@ -30,6 +31,11 @@ function AppContent() {
   }
 
   const renderContent = () => {
+    // Basic access control
+    if (activeTab !== 'dashboard' && activeTab !== 'settings' && !canAccess(activeTab)) {
+      return <Dashboard />
+    }
+
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard />
@@ -45,6 +51,8 @@ function AppContent() {
         return <Finance />
       case 'documents':
         return <Documents />
+      case 'quotations':
+        return <Quotations />
       case 'users':
         return <Users />
       case 'settings':

@@ -2,9 +2,32 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'sub-user';
+  adminId?: string; // Link to the main admin (Multi-tenant hierarchy)
   avatar?: string;
-  password?: string; // For mock data management
+  password?: string;
+  permissions?: string[]; // Array of allowed modules (e.g., ['clients', 'inventory', 'quotations', 'appearance'])
+}
+
+export interface Quotation {
+  id: string;
+  userId: string; // ID of the user who created it
+  adminId: string; // ID of the admin (for multi-tenancy)
+  clientId: string;
+  items: QuotationItem[];
+  totalAmount: number;
+  status: 'draft' | 'sent' | 'approved' | 'rejected' | 'converted';
+  validUntil: string;
+  createdAt: string;
+  notes?: string;
+}
+
+export interface QuotationItem {
+  productId: string;
+  name: string;
+  quantity: number;
+  price: number;
+  total: number;
 }
 
 export interface Client {
@@ -46,12 +69,16 @@ export interface Project {
 export interface Product {
   id: string;
   userId: string;
+  adminId: string; // ID do admin (para multi-tenancy)
   name: string;
   sku: string;
   category: string;
   quantity: number;
   minQuantity: number;
-  price: number;
+  costPrice: number; // Preço de custo
+  margin: number;    // Margem de lucro (%)
+  taxRate: number;   // Impostos (%)
+  price: number;     // Preço final de venda
   status: 'in-stock' | 'low-stock' | 'out-of-stock';
 }
 

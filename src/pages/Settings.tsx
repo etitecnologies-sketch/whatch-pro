@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   User, 
   Bell, 
@@ -18,12 +18,20 @@ import {
   RefreshCw,
   Cpu,
   History,
-  Zap
+  Zap,
+  Eye,
+  EyeOff,
+  AlertTriangle,
+  ExternalLink,
+  ChevronRight,
+  Database
 } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useAuth } from '../hooks/useAuth'
 import { useAppearance } from '../hooks/useAppearance'
+import { useData } from '../hooks/useData'
+import type { AsaasEnvironment } from '../lib/asaas'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -32,42 +40,142 @@ function cn(...inputs: ClassValue[]) {
 type SettingsSection = 'profile' | 'notifications' | 'security' | 'appearance' | 'reports' | 'integrations' | 'system'
 
 export default function Settings() {
-  const { user } = useAuth()
+  const { user, canAccess } = useAuth()
   const { theme, setTheme, accentColor, setAccentColor } = useAppearance()
+  const { syncAllClientsWithAsaas } = useData()
   const [activeSection, setActiveSection] = useState<SettingsSection>('profile')
   const [isSaved, setIsSaved] = useState(false)
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
   const [configuringIntegration, setConfiguringIntegration] = useState<string | null>(null)
   const [asaasToken, setAsaasToken] = useState(() => localStorage.getItem('whatch_pro_asaas_token') || '')
+  const [asaasEnv, setAsaasEnv] = useState<AsaasEnvironment>(() => (localStorage.getItem('whatch_pro_asaas_env') as AsaasEnvironment) || 'production')
+  const [asaasProxyEnabled, setAsaasProxyEnabled] = useState(() => localStorage.getItem('whatch_pro_asaas_proxy_enabled') === 'true')
   
-  // Mock integration states
+  // NuvemFiscal state
+  const [nuvemfiscalToken, setNuvemfiscalToken] = useState(() => localStorage.getItem('whatch_pro_nuvemfiscal_token') || '')
+  const [nuvemfiscalEnv, setNuvemfiscalEnv] = useState<'sandbox' | 'producao'>(() => (localStorage.getItem('whatch_pro_nuvemfiscal_env') as any) || 'sandbox')
+  const [nuvemfiscalProxyEnabled, setNuvemfiscalProxyEnabled] = useState(() => localStorage.getItem('whatch_pro_nuvemfiscal_proxy_enabled') === 'true')
+
+  const [showToken, setShowToken] = useState(false)
+  const [isSyncingClients, setIsSyncingClients] = useState(false)
+
+  // Load integration config from DB on mount
+  useEffect(() => {
+    if (user && (asaasProxyEnabled || nuvemfiscalProxyEnabled)) {
+      const loadIntegration = async () => {
+        const { data, error } = await supabase
+          .from('user_integrations')
+          .select('asaas_token, asaas_env, nuvemfiscal_token, nuvemfiscal_env')
+          .eq('user_id', user.id)
+          .single()
+        
+        if (data && !error) {
+          if (asaasProxyEnabled) {
+            setAsaasToken(data.asaas_token || '')
+            setAsaasEnv(data.asaas_env || 'production')
+          }
+          if (nuvemfiscalProxyEnabled) {
+            setNuvemfiscalToken(data.nuvemfiscal_token || '')
+            setNuvemfiscalEnv(data.nuvemfiscal_env || 'sandbox')
+          }
+        }
+      }
+      loadIntegration()
+    }
+  }, [user, asaasProxyEnabled, nuvemfiscalProxyEnabled])
+  
   const [integrationStates, setIntegrationStates] = useState({
-    'Asaas Gateway': asaasToken ? 'Conectado' : 'Pendente',
+    'Asaas Gateway': asaasToken || asaasProxyEnabled ? 'Conectado' : 'Pendente',
+    'NuvemFiscal NF-e': nuvemfiscalToken || nuvemfiscalProxyEnabled ? 'Conectado' : 'Pendente',
     'WhatsApp Business API': 'Conectado',
     'Supabase Cloud Database': 'Conectado',
-    'Banco Inter API': 'Próxima Meta',
-    'Google Calendar': 'Desconectado'
+    'Banco Inter API': 'Roadmap',
+    'Google Calendar': 'Roadmap'
   })
 
-  const handleSaveAsaasToken = (token: string) => {
-    setAsaasToken(token)
-    localStorage.setItem('whatch_pro_asaas_token', token)
-    setIntegrationStates(prev => ({ ...prev, 'Asaas Gateway': token ? 'Conectado' : 'Pendente' }))
-    setConfiguringIntegration(null)
-    setIsSaved(true)
-    setTimeout(() => setIsSaved(false), 3000)
+  const handleSaveAsaasConfig = async (token: string, env: AsaasEnvironment, proxy: boolean) => {
+    try {
+      if (proxy && user) {
+        // Multi-tenant: Save to Supabase table
+        const { error } = await supabase
+          .from('user_integrations')
+          .upsert({ 
+            user_id: user.id,
+            asaas_token: token,
+            asaas_env: env,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id' })
+
+        if (error) throw error
+      }
+
+      setAsaasToken(token)
+      setAsaasEnv(env)
+      setAsaasProxyEnabled(proxy)
+      localStorage.setItem('whatch_pro_asaas_token', token)
+      localStorage.setItem('whatch_pro_asaas_env', env)
+      localStorage.setItem('whatch_pro_asaas_proxy_enabled', proxy.toString())
+      setIntegrationStates(prev => ({ ...prev, 'Asaas Gateway': (token || proxy) ? 'Conectado' : 'Pendente' }))
+      setConfiguringIntegration(null)
+      setIsSaved(true)
+      setTimeout(() => setIsSaved(false), 3000)
+      
+      if (token || proxy) {
+          handleManualSync()
+      }
+    } catch (error: any) {
+      console.error('Erro ao salvar configuração do Asaas:', error)
+      alert('Erro ao salvar no servidor: ' + (error.message || 'Verifique sua conexão'))
+    }
   }
 
-  const handleSave = () => {
-    setIsSaved(true)
-    setTimeout(() => setIsSaved(false), 3000)
+  const handleManualSync = async () => {
+    setIsSyncingClients(true)
+    try {
+        await syncAllClientsWithAsaas()
+    } catch (error) {
+        console.error('Erro na sincronização manual:', error)
+    } finally {
+        setIsSyncingClients(false)
+    }
+  }
+
+  const handleSaveNuvemFiscalConfig = async (token: string, env: 'sandbox' | 'producao', proxy: boolean) => {
+    try {
+      if (proxy && user) {
+        const { error } = await supabase
+          .from('user_integrations')
+          .upsert({ 
+            user_id: user.id,
+            nuvemfiscal_token: token,
+            nuvemfiscal_env: env,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id' })
+
+        if (error) throw error
+      }
+
+      setNuvemfiscalToken(token)
+      setNuvemfiscalEnv(env)
+      setNuvemfiscalProxyEnabled(proxy)
+      localStorage.setItem('whatch_pro_nuvemfiscal_token', token)
+      localStorage.setItem('whatch_pro_nuvemfiscal_env', env)
+      localStorage.setItem('whatch_pro_nuvemfiscal_proxy_enabled', proxy.toString())
+      setIntegrationStates(prev => ({ ...prev, 'NuvemFiscal NF-e': (token || proxy) ? 'Conectado' : 'Pendente' }))
+      setConfiguringIntegration(null)
+      setIsSaved(true)
+      setTimeout(() => setIsSaved(false), 3000)
+    } catch (error: any) {
+      console.error('Erro ao salvar configuração NuvemFiscal:', error)
+      alert('Erro ao salvar no servidor: ' + (error.message || 'Verifique sua conexão'))
+    }
   }
 
   const handleCheckUpdate = () => {
     setIsCheckingUpdate(true)
     setTimeout(() => {
       setIsCheckingUpdate(false)
-      alert('Seu sistema Whatch Pro OS está na versão mais recente (v1.2.4-stable).')
+      alert('Sua versão v1.3.0 está atualizada!\n\nNovidades:\n- Sistema de Orçamentos Dinâmicos\n- Gestão de Custos, Margens e Impostos no Estoque\n- Controle de Permissões Granulares por Admin\n- Multi-tenancy: Ambientes Totalmente Isolados\n- Melhorias na Performance de Sincronização')
     }, 2000)
   }
 
@@ -79,7 +187,11 @@ export default function Settings() {
     { id: 'reports', label: 'Relatórios', icon: FileText },
     { id: 'integrations', label: 'Integrações', icon: Globe },
     { id: 'system', label: 'Sistema & Updates', icon: Cpu },
-  ]
+  ].filter(section => {
+    if (section.id === 'profile' || section.id === 'notifications') return true;
+    if (section.id === 'appearance') return canAccess('appearance');
+    return user?.role === 'admin' || user?.id === 'master-id-000';
+  })
 
   const renderSection = () => {
     switch (activeSection) {
@@ -251,8 +363,8 @@ export default function Settings() {
           </div>
         );
       case 'integrations':
-        const activeIntegrations = Object.entries(integrationStates).filter(([_, status]) => status !== 'Próxima Meta')
-        const futureIntegrations = Object.entries(integrationStates).filter(([_, status]) => status === 'Próxima Meta')
+        const activeIntegrations = Object.entries(integrationStates).filter(([_, status]) => status !== 'Próxima Meta' && status !== 'Roadmap')
+        const RoadmapIntegrations = Object.entries(integrationStates).filter(([_, status]) => status === 'Próxima Meta' || status === 'Roadmap')
 
         return (
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -279,7 +391,7 @@ export default function Settings() {
                 Próximos Passos (Roadmap)
               </h4>
               <div className="space-y-4 opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-500">
-                {futureIntegrations.map(([label, status]) => (
+                {RoadmapIntegrations.map(([label, status]) => (
                   <IntegrationItem 
                     key={label} 
                     label={label} 
@@ -306,30 +418,214 @@ export default function Settings() {
                   </div>
 
                   <div className="space-y-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
-                        {configuringIntegration === 'Asaas Gateway' ? 'Asaas API Token' : 'Chave da API / Token'}
-                      </label>
-                      <input 
-                        type="password" 
-                        defaultValue={configuringIntegration === 'Asaas Gateway' ? asaasToken : "••••••••••••••••"}
-                        id="integration-token"
-                        className="w-full px-6 py-4 bg-slate-900/40 border border-white/5 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-bold text-white shadow-inner"
-                      />
-                    </div>
-                    {configuringIntegration === 'WhatsApp Business API' && (
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Número de Telefone</label>
-                        <input 
-                          type="text" 
-                          placeholder="+55 (00) 00000-0000"
-                          className="w-full px-6 py-4 bg-slate-900/40 border border-white/5 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-bold text-white shadow-inner"
-                        />
+                    {configuringIntegration === 'Asaas Gateway' && (
+                      <div className="space-y-6">
+                        <div className="p-4 rounded-[32px] bg-primary/5 border border-primary/10 mb-2">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Shield size={16} className="text-primary" />
+                              <span className="text-[10px] font-black uppercase tracking-widest text-primary">Segurança de Servidor (Proxy)</span>
+                            </div>
+                            <button 
+                              onClick={() => setAsaasProxyEnabled(!asaasProxyEnabled)}
+                              className={cn(
+                                "w-10 h-5 rounded-full transition-all relative p-1 shadow-inner",
+                                asaasProxyEnabled ? "bg-primary" : "bg-slate-300 dark:bg-slate-800"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-3 h-3 bg-white rounded-full shadow-sm transition-all",
+                                asaasProxyEnabled ? "translate-x-5" : "translate-x-0"
+                              )} />
+                            </button>
+                          </div>
+                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
+                            Ao ativar, o Token é armazenado no Supabase Vault e nunca chega ao navegador. Recomendado para nível máximo de segurança.
+                          </p>
+                        </div>
+
+                        {!asaasProxyEnabled ? (
+                          <div className="space-y-2 animate-in fade-in duration-300">
+                            <div className="flex items-center justify-between px-1">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                Asaas API Token
+                              </label>
+                              <button 
+                                onClick={() => setShowToken(!showToken)}
+                                className="text-slate-500 hover:text-primary transition-colors"
+                              >
+                                {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
+                              </button>
+                            </div>
+                            <input 
+                              type={showToken ? "text" : "password"}
+                              defaultValue={asaasToken}
+                              id="integration-token"
+                              className="w-full px-6 py-4 bg-slate-900/40 border border-white/5 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-bold text-white shadow-inner"
+                            />
+                          </div>
+                        ) : (
+                          <div className="p-6 rounded-3xl bg-slate-950/40 border border-white/5 flex flex-col items-center justify-center text-center space-y-3 animate-in zoom-in-95 duration-300">
+                            <div className="p-3 bg-primary/10 text-primary rounded-2xl">
+                              <Lock size={24} />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-black text-white uppercase tracking-widest">Configuração via Servidor Ativa</p>
+                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">O token será gerenciado pelo Supabase Edge Functions.</p>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Ambiente</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button 
+                              onClick={() => setAsaasEnv('sandbox')}
+                              className={cn(
+                                "py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                                asaasEnv === 'sandbox' 
+                                  ? "bg-amber-500/10 border-amber-500/50 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]" 
+                                  : "bg-slate-900/40 border-white/5 text-slate-500 hover:border-white/10"
+                              )}
+                            >
+                              Sandbox (Testes)
+                            </button>
+                            <button 
+                              onClick={() => setAsaasEnv('production')}
+                              className={cn(
+                                "py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                                asaasEnv === 'production' 
+                                  ? "bg-primary/10 border-primary/50 text-primary shadow-[0_0_15px_rgba(37,99,235,0.2)]" 
+                                  : "bg-slate-900/40 border-white/5 text-slate-500 hover:border-white/10"
+                              )}
+                            >
+                              Produção (Real)
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="p-4 rounded-2xl bg-slate-900/60 border border-white/5 space-y-3">
+                          <div className="flex items-start gap-3">
+                            <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+                              Certifique-se de que o Token corresponde ao ambiente selecionado. Tokens de Sandbox não funcionam em Produção e vice-versa.
+                            </p>
+                          </div>
+                          <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Sincronização de Dados</span>
+                            <button 
+                              onClick={handleManualSync}
+                              disabled={isSyncingClients || (!asaasToken && !asaasProxyEnabled)}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-xl transition-all disabled:opacity-50"
+                            >
+                              {isSyncingClients ? <Loader2 size={12} className="animate-spin text-primary" /> : <RefreshCw size={12} className="text-primary" />}
+                              <span className="text-[9px] font-black text-white uppercase tracking-widest">Sincronizar Agora</span>
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     )}
-                    {configuringIntegration === 'Asaas Gateway' && (
-                      <p className="text-[10px] text-slate-500 italic">O Token de API pode ser gerado no painel do Asaas em Configurações &gt; Integrações.</p>
+                            >
+                              Produção (Real)
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="p-4 rounded-2xl bg-slate-900/60 border border-white/5 space-y-3">
+                          <div className="flex items-start gap-3">
+                            <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+                              Certifique-se de que o Token corresponde ao ambiente selecionado. Tokens de Sandbox não funcionam em Produção e vice-versa.
+                            </p>
+                          </div>
+                          <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Sincronização de Dados</span>
+                            <button 
+                              onClick={handleManualSync}
+                              disabled={isSyncingClients || !asaasToken}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-xl transition-all disabled:opacity-50"
+                            >
+                              {isSyncingClients ? <Loader2 size={12} className="animate-spin text-primary" /> : <RefreshCw size={12} className="text-primary" />}
+                              <span className="text-[9px] font-black text-white uppercase tracking-widest">Sincronizar Agora</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <p className="text-[10px] text-slate-500 italic px-1">
+                          O Token de API pode ser gerado no painel do Asaas em <span className="text-slate-400 font-bold">Configurações &gt; Integrações</span>.
+                        </p>
+                      </>
                     )}
+
+                    {configuringIntegration === 'NuvemFiscal NF-e' && (
+                      <div className="space-y-6">
+                        <div className="p-4 rounded-[32px] bg-primary/5 border border-primary/10 mb-2">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Shield size={16} className="text-primary" />
+                              <span className="text-[10px] font-black uppercase tracking-widest text-primary">Segurança de Servidor (Proxy)</span>
+                            </div>
+                            <button 
+                              onClick={() => setNuvemfiscalProxyEnabled(!nuvemfiscalProxyEnabled)}
+                              className={cn(
+                                "w-10 h-5 rounded-full transition-all relative p-1 shadow-inner",
+                                nuvemfiscalProxyEnabled ? "bg-primary" : "bg-slate-300 dark:bg-slate-800"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-3 h-3 bg-white rounded-full shadow-sm transition-all",
+                                nuvemfiscalProxyEnabled ? "translate-x-5" : "translate-x-0"
+                              )} />
+                            </button>
+                          </div>
+                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
+                            Ao ativar, o Token da NuvemFiscal é gerenciado pelo servidor. Recomendado para o modelo SaaS.
+                          </p>
+                        </div>
+
+                        {!nuvemfiscalProxyEnabled ? (
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">NuvemFiscal API Key</label>
+                            <input 
+                              type="password"
+                              defaultValue={nuvemfiscalToken}
+                              id="nuvemfiscal-token"
+                              className="w-full px-6 py-4 bg-slate-900/40 border border-white/5 rounded-2xl outline-none text-sm font-bold text-white shadow-inner"
+                            />
+                          </div>
+                        ) : (
+                          <div className="p-6 rounded-3xl bg-slate-950/40 border border-white/5 flex flex-col items-center justify-center text-center space-y-3">
+                            <Lock size={24} className="text-primary" />
+                            <p className="text-[10px] font-black text-white uppercase tracking-widest">Configuração via Servidor Ativa</p>
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Ambiente</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button 
+                              onClick={() => setNuvemfiscalEnv('sandbox')}
+                              className={cn(
+                                "py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                                nuvemfiscalEnv === 'sandbox' ? "bg-amber-500/10 border-amber-500/50 text-amber-500" : "bg-slate-900/40 border-white/5 text-slate-500"
+                              )}
+                            >
+                              Sandbox
+                            </button>
+                            <button 
+                              onClick={() => setNuvemfiscalEnv('producao')}
+                              className={cn(
+                                "py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                                nuvemfiscalEnv === 'producao' ? "bg-primary/10 border-primary/50 text-primary" : "bg-slate-900/40 border-white/5 text-slate-500"
+                              )}
+                            >
+                              Produção
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {configuringIntegration === 'Banco Inter API' && (
                       <div className="space-y-4">
                         <div className="space-y-2">
@@ -353,9 +649,12 @@ export default function Settings() {
                     {configuringIntegration !== 'Banco Inter API' ? (
                       <button 
                         onClick={() => {
-                          const token = (document.getElementById('integration-token') as HTMLInputElement)?.value
                           if (configuringIntegration === 'Asaas Gateway') {
-                            handleSaveAsaasToken(token)
+                            const token = (document.getElementById('integration-token') as HTMLInputElement)?.value
+                            handleSaveAsaasConfig(token || asaasToken, asaasEnv, asaasProxyEnabled)
+                          } else if (configuringIntegration === 'NuvemFiscal NF-e') {
+                            const token = (document.getElementById('nuvemfiscal-token') as HTMLInputElement)?.value
+                            handleSaveNuvemFiscalConfig(token || nuvemfiscalToken, nuvemfiscalEnv, nuvemfiscalProxyEnabled)
                           } else {
                             setIntegrationStates(prev => ({ ...prev, [configuringIntegration]: 'Conectado' }))
                             setConfiguringIntegration(null)

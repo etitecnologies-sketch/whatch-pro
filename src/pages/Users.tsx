@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit2, Trash2, User as UserIcon, Shield, ShieldCheck, X, Mail, Lock, UserCheck } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, User as UserIcon, Shield, ShieldCheck, X, Mail, Lock, UserCheck, Check } from 'lucide-react'
 import type { User } from '../types'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -19,14 +19,43 @@ export default function Users() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: 'user' as 'user' | 'admin',
-    password: ''
+    role: 'sub-user' as 'sub-user' | 'admin',
+    password: '',
+    permissions: [] as string[]
   })
 
+  const availablePermissions = [
+    { id: 'clients', label: 'Clientes' },
+    { id: 'inventory', label: 'Estoque / Itens' },
+    { id: 'quotations', label: 'Gerar Orçamentos' },
+    { id: 'appearance', label: 'Mudar Aparência' },
+    { id: 'employees', label: 'Funcionários' },
+    { id: 'projects', label: 'Projetos' },
+    { id: 'finance', label: 'Financeiro' },
+    { id: 'documents', label: 'Documentos' },
+  ]
+
   useEffect(() => {
-    const allUsers = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
-    setUsers(allUsers)
-  }, [])
+    const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
+    
+    // Strict isolation filtering:
+    const filteredByAdmin = allUsers.filter(u => {
+      // 1. Master sees all Admins (to manage them)
+      if (currentUser?.id === 'master-id-000') {
+          return u.role === 'admin' || u.id === 'master-id-000';
+      }
+      
+      // 2. Admin sees themselves and their own sub-users
+      if (currentUser?.role === 'admin') {
+          return u.id === currentUser.id || u.adminId === currentUser.id;
+      }
+
+      // 3. Sub-users shouldn't even be here (access check is done at top of component), 
+      // but for safety, they only see themselves
+      return u.id === currentUser?.id;
+    })
+    setUsers(filteredByAdmin)
+  }, [currentUser])
 
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -39,29 +68,54 @@ export default function Users() {
         return
     }
     if (confirm('Tem certeza que deseja excluir este usuário?')) {
-      const updatedUsers = users.filter(u => u.id !== id)
-      setUsers(updatedUsers)
-      localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedUsers))
+      const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
+      const updatedAllUsers = allUsers.filter(u => u.id !== id)
+      localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedAllUsers))
+      setUsers(users.filter(u => u.id !== id))
     }
   }
 
+  const togglePermission = (permId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      permissions: prev.permissions.includes(permId)
+        ? prev.permissions.filter(p => p !== permId)
+        : [...prev.permissions, permId]
+    }))
+  }
+
   const handleSave = () => {
-    let updatedUsers: User[]
+    if (!currentUser) return
+
+    let updatedAllUsers: User[]
+    const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
+
     if (editingUser) {
-      updatedUsers = users.map(u => u.id === editingUser.id ? { ...u, ...formData } : u)
+      updatedAllUsers = allUsers.map(u => u.id === editingUser.id ? { ...u, ...formData } : u)
     } else {
       const newUser: User = {
         id: crypto.randomUUID(),
         name: formData.name,
         email: formData.email,
         role: formData.role,
+        // If Master creates an Admin, adminId is null (they are their own tenant)
+        // If Admin creates a sub-user, adminId is the current Admin's ID
+        adminId: currentUser.id === 'master-id-000' ? undefined : currentUser.id,
+        permissions: formData.role === 'sub-user' ? formData.permissions : undefined,
         avatar: `https://ui-avatars.com/api/?name=${formData.name}&background=random`
       }
-      updatedUsers = [...users, newUser]
+      updatedAllUsers = [...allUsers, newUser]
     }
     
-    setUsers(updatedUsers)
-    localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedUsers))
+    localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedAllUsers))
+    
+    // Refresh local list
+    const filteredByAdmin = updatedAllUsers.filter(u => 
+      u.id === currentUser.id || 
+      u.adminId === currentUser.id ||
+      currentUser.id === 'master-id-000'
+    )
+    setUsers(filteredByAdmin)
     setIsModalOpen(false)
   }
 
@@ -71,12 +125,19 @@ export default function Users() {
       setFormData({
         name: user.name,
         email: user.email,
-        role: user.role,
-        password: ''
+        role: user.role as 'sub-user' | 'admin',
+        password: '',
+        permissions: user.permissions || []
       })
     } else {
       setEditingUser(null)
-      setFormData({ name: '', email: '', role: 'user', password: '' })
+      setFormData({ 
+        name: '', 
+        email: '', 
+        role: 'sub-user', 
+        password: '',
+        permissions: ['clients', 'inventory', 'quotations', 'appearance'] // Default permissions
+      })
     }
     setIsModalOpen(true)
   }
@@ -248,15 +309,45 @@ export default function Users() {
                     <Shield size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors pointer-events-none" />
                     <select 
                         value={formData.role}
-                        onChange={e => setFormData({ ...formData, role: e.target.value as 'user' | 'admin' })}
+                        onChange={e => setFormData({ ...formData, role: e.target.value as 'sub-user' | 'admin' })}
                         className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner appearance-none"
                     >
-                        <option value="user">User (Padrão)</option>
-                        <option value="admin">Admin (Total)</option>
+                        <option value="sub-user">Sub-usuário (Limitado)</option>
+                        {currentUser?.id === 'master-id-000' && (
+                            <option value="admin">Administrador (Master)</option>
+                        )}
                     </select>
                   </div>
                 </div>
               </div>
+
+              {formData.role === 'sub-user' && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Permissões do Usuário</label>
+                  <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
+                    {availablePermissions.map(perm => (
+                      <button
+                        key={perm.id}
+                        onClick={() => togglePermission(perm.id)}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                          formData.permissions.includes(perm.id)
+                            ? "bg-primary/10 border-primary/20 text-primary shadow-sm"
+                            : "bg-white dark:bg-slate-800 border-transparent text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-750"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-4 h-4 rounded flex items-center justify-center border transition-all",
+                          formData.permissions.includes(perm.id) ? "bg-primary border-primary text-white" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+                        )}>
+                          {formData.permissions.includes(perm.id) && <Check size={10} />}
+                        </div>
+                        {perm.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="p-8 bg-white/5 border-t border-white/10 flex gap-4">
