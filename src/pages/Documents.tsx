@@ -46,16 +46,16 @@ export default function Documents() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="glass p-8 rounded-[32px] border border-white/40 dark:border-slate-800/50 card-hover">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total de NF-e</p>
+        <div className="glass p-8 rounded-[32px] border border-white/50 dark:border-slate-600/60 card-hover">
+            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">NFC-e</p>
             <h3 className="text-3xl font-black text-slate-900 dark:text-white">{fiscalDocuments.filter(d => d.type === 'NF-e').length}</h3>
         </div>
         <div className="glass p-8 rounded-[32px] border border-white/40 dark:border-slate-800/50 card-hover">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total de Cupons</p>
             <h3 className="text-3xl font-black text-slate-900 dark:text-white">{fiscalDocuments.filter(d => d.type === 'Cupom').length}</h3>
         </div>
-        <div className="glass p-8 rounded-[32px] border border-white/40 dark:border-slate-800/50 card-hover">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Volume Fiscal</p>
+        <div className="glass p-8 rounded-[32px] border border-white/50 dark:border-slate-600/60 card-hover">
+            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Cupom Fiscal</p>
             <h3 className="text-3xl font-black text-primary glow-text">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(fiscalDocuments.reduce((acc, d) => acc + d.amount, 0))}
             </h3>
@@ -63,7 +63,7 @@ export default function Documents() {
       </div>
 
       {/* Filters & Search */}
-      <div className="glass rounded-[40px] shadow-2xl border border-white/40 dark:border-slate-800/50 overflow-hidden">
+      <div className="glass rounded-[40px] shadow-2xl border border-white/50 dark:border-slate-600/60 overflow-hidden">
         <div className="p-8 border-b border-white/20 dark:border-slate-800/50 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <button 

@@ -134,7 +134,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
                 "w-full flex items-center px-4 py-3.5 gap-4 transition-all duration-500 rounded-2xl group relative overflow-hidden",
                 activeTab === item.id 
                   ? "bg-primary text-white shadow-xl shadow-primary/20" 
-                  : "text-slate-500 hover:text-slate-100 hover:bg-white/5"
+                  : "text-slate-300 hover:text-slate-100 hover:bg-white/5"
               )}
             >
               {activeTab === item.id && (
@@ -196,7 +196,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
         {/* Header */}
         <header className="h-20 glass border-b border-white/20 dark:border-slate-800/50 flex items-center justify-between px-8 shrink-0 z-10 mx-6 mt-6 rounded-3xl shadow-2xl transition-all duration-500 hover:border-primary/30">
           <div className="flex items-center gap-8 flex-1">
-            <div className="hidden xl:flex items-center gap-4 text-slate-500 dark:text-slate-300 bg-white/40 dark:bg-slate-900/40 px-5 py-2.5 rounded-2xl border border-white/40 dark:border-slate-700/50 shadow-inner backdrop-blur-md">
+            <div className="hidden xl:flex items-center gap-4 text-slate-700 dark:text-slate-200 bg-white/50 dark:bg-slate-800/60 px-5 py-2.5 rounded-2xl border border-white/50 dark:border-slate-600/60 shadow-inner backdrop-blur-md">
               <div className="flex flex-col items-center justify-center border-r border-slate-300 dark:border-slate-700 pr-4">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary leading-none mb-1">Status</span>
                 <div className="flex items-center gap-1.5">
@@ -227,7 +227,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
                 onClick={() => setIsCommandPaletteOpen(true)}
                 type="text"
                 placeholder="Busca global inteligente (Ctrl+K)..."
-                className="w-full pl-12 pr-4 py-3 bg-white/40 dark:bg-slate-900/40 border border-white/40 dark:border-slate-700/50 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-medium placeholder:text-slate-400/70 shadow-inner cursor-pointer"
+                className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-slate-800/60 border border-white/50 dark:border-slate-600/60 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-medium placeholder:text-slate-600 dark:placeholder:text-slate-400 shadow-inner cursor-pointer"
               />
               <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1.5 opacity-40 group-focus-within:opacity-100 transition-opacity">
                 <kbd className="px-2 py-1 text-[10px] font-bold text-slate-500 bg-white/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-sm">⌘</kbd>
@@ -281,7 +281,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
               {/* Notification Popover */}
               {isNotificationsOpen && (
                 <div className="absolute top-16 right-0 w-80 glass border border-white/20 rounded-3xl shadow-2xl z-50 overflow-hidden animate-in zoom-in-95 duration-200">
-                    <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5">
+                    <div className="p-4 border-b border-white/20 flex items-center justify-between bg-white/10">
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Notificações</span>
                         {totalNotifications > 0 && <span className="text-[8px] font-black bg-red-500 text-white px-2 py-0.5 rounded-full">{totalNotifications} Alertas</span>}
                     </div>

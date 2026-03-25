@@ -63,7 +63,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Performance Chart Simulation */}
-        <div className="lg:col-span-2 glass rounded-3xl p-8 shadow-xl border border-white/40 dark:border-slate-800/50">
+        <div className="lg:col-span-2 glass rounded-3xl p-8 shadow-xl border border-white/50 dark:border-slate-600/60">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-xl font-black text-slate-900 dark:text-white">Performance de Receita</h3>
             <select className="bg-white/40 dark:bg-slate-900/40 border-0 rounded-xl px-4 py-2 text-xs font-bold outline-none ring-1 ring-slate-200 dark:ring-slate-700">

@@ -492,7 +492,7 @@ export default function Settings() {
           ))}
         </div>
 
-        <div className="lg:col-span-3 glass rounded-[40px] border border-white/40 dark:border-slate-800/50 p-10 shadow-2xl relative overflow-hidden">
+        <div className="lg:col-span-3 glass rounded-[40px] border border-white/50 dark:border-slate-600/60 p-10 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
                 {(() => {
                   const Icon = sections.find(s => s.id === activeSection)?.icon || User

@@ -170,13 +170,13 @@ export default function Finance() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="glass p-8 rounded-[32px] border border-white/40 dark:border-slate-800/50 card-hover group">
+        <div className="glass p-8 rounded-[32px] border border-white/50 dark:border-slate-600/60 card-hover group">
           <div className="flex items-center justify-between mb-6">
             <div className="p-4 bg-primary/10 text-primary rounded-2xl group-hover:scale-110 transition-transform duration-500 shadow-inner">
               <Wallet size={32} />
             </div>
           </div>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Saldo Consolidado</p>
+          <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Saldo Consolidado</p>
           <h3 className={cn(
             "text-3xl font-black tracking-tightest transition-all duration-500",
             balance >= 0 ? "text-slate-900 dark:text-white" : "text-red-500"
@@ -185,25 +185,25 @@ export default function Finance() {
           </h3>
         </div>
 
-        <div className="glass p-8 rounded-[32px] border border-white/40 dark:border-slate-800/50 card-hover group">
+        <div className="glass p-8 rounded-[32px] border border-white/50 dark:border-slate-600/60 card-hover group">
           <div className="flex items-center justify-between mb-6">
             <div className="p-4 bg-green-500/10 text-green-500 rounded-2xl group-hover:scale-110 transition-transform duration-500 shadow-inner">
               <TrendingUp size={32} />
             </div>
           </div>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total Receitas</p>
+          <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Total Receitas</p>
           <h3 className="text-3xl font-black text-green-500 tracking-tightest">
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(income)}
           </h3>
         </div>
 
-        <div className="glass p-8 rounded-[32px] border border-white/40 dark:border-slate-800/50 card-hover group">
+        <div className="glass p-8 rounded-[32px] border border-white/50 dark:border-slate-600/60 card-hover group">
           <div className="flex items-center justify-between mb-6">
             <div className="p-4 bg-red-500/10 text-red-500 rounded-2xl group-hover:scale-110 transition-transform duration-500 shadow-inner">
               <TrendingDown size={32} />
             </div>
           </div>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total Despesas</p>
+          <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Total Despesas</p>
           <h3 className="text-3xl font-black text-red-500 tracking-tightest">
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(expenses)}
           </h3>
@@ -211,7 +211,7 @@ export default function Finance() {
       </div>
 
       {/* Transactions Table */}
-      <div className="glass rounded-[40px] shadow-2xl border border-white/40 dark:border-slate-800/50 overflow-hidden">
+      <div className="glass rounded-[40px] shadow-2xl border border-white/50 dark:border-slate-600/60 overflow-hidden">
         <div className="p-8 border-b border-white/20 dark:border-slate-800/50 flex flex-col sm:flex-row items-center justify-between gap-6">
           <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tightest">Fluxo de Caixa</h3>
           <div className="relative w-full max-w-md group">
@@ -219,7 +219,7 @@ export default function Finance() {
             <input
               type="text"
               placeholder="Buscar transação..."
-              className="w-full pl-12 pr-4 py-3 bg-white/40 dark:bg-slate-900/40 border border-white/40 dark:border-slate-700/50 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-medium"
+              className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-slate-800/60 border border-white/50 dark:border-slate-600/60 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-medium placeholder:text-slate-600 dark:placeholder:text-slate-400"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -230,12 +230,12 @@ export default function Finance() {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-900/50 dark:bg-slate-950/50 border-b border-white/5">
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Transação</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Categoria</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Valor</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Data</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Ações Fiscais</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-right">Ações</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Transação</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Categoria</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Valor</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Data</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Ações Fiscais</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/10 dark:divide-slate-800/50">

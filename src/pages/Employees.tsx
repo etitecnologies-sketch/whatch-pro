@@ -112,30 +112,30 @@ export default function Employees() {
       </div>
 
       {/* Filters and Search */}
-      <div className="glass p-6 rounded-[32px] border border-white/40 dark:border-slate-800/50 flex flex-col md:flex-row gap-6">
+      <div className="glass p-6 rounded-[32px] border border-white/50 dark:border-slate-600/60 flex flex-col md:flex-row gap-6">
         <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-all duration-300" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 group-focus-within:text-primary transition-all duration-300" size={18} />
           <input
             type="text"
             placeholder="Pesquisar por nome, e-mail ou cargo..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white/40 dark:bg-slate-900/40 border border-white/40 dark:border-slate-700/50 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-medium shadow-inner"
+            className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-slate-800/60 border border-white/50 dark:border-slate-600/60 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-medium placeholder:text-slate-600 dark:placeholder:text-slate-400 shadow-inner"
           />
         </div>
       </div>
 
       {/* Employees Table */}
-      <div className="glass rounded-[40px] shadow-2xl border border-white/40 dark:border-slate-800/50 overflow-hidden">
+      <div className="glass rounded-[40px] shadow-2xl border border-white/50 dark:border-slate-600/60 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-900/50 dark:bg-slate-950/50 border-b border-white/5">
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Colaborador</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Documentos / Contato</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Cargo / Função</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Status</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-right">Gerenciar</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Colaborador</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Documentos / Contato</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Cargo / Função</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Status</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300 text-right">Gerenciar</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/10 dark:divide-slate-800/50">

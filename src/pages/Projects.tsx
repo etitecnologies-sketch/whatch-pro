@@ -104,15 +104,15 @@ export default function Projects() {
       </div>
 
       {/* Filters and Search */}
-      <div className="glass p-6 rounded-[32px] border border-white/40 dark:border-slate-800/50 flex flex-col md:flex-row gap-6">
+      <div className="glass p-6 rounded-[32px] border border-white/50 dark:border-slate-600/60 flex flex-col md:flex-row gap-6">
         <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-all duration-300" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 group-focus-within:text-primary transition-all duration-300" size={18} />
           <input
             type="text"
             placeholder="Pesquisar projetos..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white/40 dark:bg-slate-900/40 border border-white/40 dark:border-slate-700/50 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-medium shadow-inner"
+            className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-slate-800/60 border border-white/50 dark:border-slate-600/60 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-medium placeholder:text-slate-600 dark:placeholder:text-slate-400 shadow-inner"
           />
         </div>
       </div>
@@ -122,7 +122,7 @@ export default function Projects() {
         {filteredProjects.map((project) => {
             const statusInfo = getStatusInfo(project.status)
             return (
-                <div key={project.id} className="glass rounded-[40px] border border-white/40 dark:border-slate-800/50 p-8 card-hover group flex flex-col h-full relative overflow-hidden">
+                <div key={project.id} className="glass rounded-[40px] border border-white/50 dark:border-slate-600/60 p-8 card-hover group flex flex-col h-full relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-primary/20 transition-all duration-500"></div>
                     
                     <div className="flex items-center justify-between mb-8 relative z-10">

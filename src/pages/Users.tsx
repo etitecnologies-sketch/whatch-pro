@@ -109,7 +109,7 @@ export default function Users() {
       </div>
 
       {/* Search */}
-      <div className="glass p-6 rounded-[32px] border border-white/40 dark:border-slate-800/50">
+      <div className="glass p-6 rounded-[32px] border border-white/50 dark:border-slate-600/60">
         <div className="relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-all duration-300" size={18} />
           <input
@@ -123,7 +123,7 @@ export default function Users() {
       </div>
 
       {/* Users Table */}
-      <div className="glass rounded-[40px] shadow-2xl border border-white/40 dark:border-slate-800/50 overflow-hidden">
+      <div className="glass rounded-[40px] shadow-2xl border border-white/50 dark:border-slate-600/60 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
