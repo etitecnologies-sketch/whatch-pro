@@ -4,9 +4,13 @@ import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useData } from '../hooks/useData'
 import { useAuth } from '../hooks/useAuth'
+import { useSEFAZ } from '../hooks/useSEFAZ'
 import type { Transaction, FiscalDocument } from '../types'
 import FiscalDocumentModal from '../components/FiscalDocumentModal'
 import BoletoModal from '../components/BoletoModal'
+import SEFAZService from '../lib/sefaz'
+import NuvemFiscalService from '../lib/nuvemfiscal'
+import generateNFEXML from '../lib/fiscalXML'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -15,6 +19,7 @@ function cn(...inputs: ClassValue[]) {
 export default function Finance() {
   const { transactions, setTransactions, fiscalDocuments, setFiscalDocuments, clients, saveData } = useData()
   const { user } = useAuth()
+  const { configuracaoSEFAZ, getCertificadoAtivo } = useSEFAZ()
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isFiscalModalOpen, setIsFiscalModalOpen] = useState(false)
@@ -22,6 +27,7 @@ export default function Finance() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [selectedDocument, setSelectedDocument] = useState<FiscalDocument | null>(null)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
+  const [gerando, setGerando] = useState(false)
 
   const [formData, setFormData] = useState({
     description: '',
@@ -107,45 +113,170 @@ export default function Finance() {
     const message = `🚀 *WHATCH PRO - COBRANÇA DIGITAL*\n\nOlá! Identificamos uma pendência referente a: *${t.description}*\n\n💰 *Valor:* ${formattedAmount}\n📅 *Vencimento:* 15/04/2026\n\n🔗 *Acesse seu boleto aqui:* [LINK_SIMULADO]\n\n_Whatch Pro OS - Gestão Empresarial Futurista_`
     const encodedMessage = encodeURIComponent(message)
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank')
-  }
-
-  const handleGenerateFiscal = (t: Transaction, type: 'NF-e' | 'Cupom') => {
-    if (!user) return
-
-    // Check if document already exists
-    const existingDoc = fiscalDocuments.find(d => d.transactionId === t.id && d.type === type)
-    
-    if (existingDoc) {
-      setSelectedTransaction(t)
-      setSelectedDocument(existingDoc)
-      setIsFiscalModalOpen(true)
-      return
+  }async (t: Transaction, type: 'NF-e' | 'NFC-e' | 'Cupom') => {
+    if (!user || !configuracaoSEFAZ) {
+      alert('⚠️ Configure SEFAZ em Configurações → Receita Federal');
+      return;
     }
 
-    // Create new mock fiscal document
-    const newDoc: FiscalDocument = {
-      id: Math.random().toString(36).substr(2, 9),
-      userId: user.id,
-      transactionId: t.id,
-      type: type === 'NF-e' ? 'NF-e' : 'Cupom',
-      number: Math.floor(Math.random() * 999999).toString().padStart(6, '0'),
-      series: '001',
-      accessKey: Array.from({length: 44}, () => Math.floor(Math.random() * 10)).join(''),
-      issueDate: new Date().toISOString(),
-      amount: t.amount,
-      status: 'issued'
+    setGerando(true);
+    try {
+      // Verifica se já existe documento
+      const existingDoc = fiscalDocuments.find(d => d.transactionId === t.id && d.type === type);
+      
+      if (existingDoc) {
+        setSelectedTransaction(t);
+        setSelectedDocument(existingDoc);
+        setIsFiscalModalOpen(true);
+        return;
+      }
+
+      // Gera chave de acesso
+      const sefazService = new SEFAZService({
+        cnpj: configuracaoSEFAZ.cnpj,
+        environment: configuracaoSEFAZ.ambiente,
+        uf: configuracaoSEFAZ.uf,
+        enableDebug: true
+      });
+
+      const modelo = type === 'NF-e' ? '55' : type === 'NFC-e' ? '65' : '65';
+      const aamm = new Date().toISOString().slice(2, 7).replace('-', '');
+      
+      const accessKey = sefazService.generateAccessKey({
+        uf: configuracaoSEFAZ.uf === 'SP' ? '35' : '30', // Código IBGE
+        yearMonth: aamm,
+        cnpj: configuracaoSEFAZ.cnpj,
+        model: modelo,
+        series: configuracaoSEFAZ.serieNFe,
+        number: configuracaoSEFAZ.proximoNumeroNFe.toString()
+      });
+
+      // Se usar Nuvemfiscal (híbrido ou integrador)
+      if (configuracaoSEFAZ.tipoIntegracao === 'nuvemfiscal' || configuracaoSEFAZ.tipoIntegracao === 'hibrido') {
+        if (!configuracaoSEFAZ.nuvemfiscalApiKey) {
+          alert('❌ API Key Nuvemfiscal não configurada');
+          return;
+        }
+
+        const nfService = new NuvemFiscalService({
+          apiKey: configuracaoSEFAZ.nuvemfiscalApiKey,
+          environment: configuracaoSEFAZ.ambiente === 'producao' ? 'producao' : 'sandbox',
+          enableDebug: true
+        });
+
+        // Prepara dados para enviar
+        const nfeData = {
+          natureza_operacao: 'VENDA',
+          modelo: type === 'NF-e' ? 'nfe' : 'nfce' as any,
+          serie: parseInt(configuracaoSEFAZ.serieNFe),
+          numero_nf: configuracaoSEFAZ.proximoNumeroNFe,
+          data_emissao: t.date,
+          tipo_documento: 'SAIDA' as any,
+          natureza_operacao_codigo: 5102,
+          fornecedor: {
+            nome: configuracaoSEFAZ.razaoSocial,
+            nome_fantasia: configuracaoSEFAZ.nomeFantasia,
+            inscricao_estadual: configuracaoSEFAZ.inscricaoEstadual,
+            cnpj: configuracaoSEFAZ.cnpj,
+            endereco: {
+              logradouro: configuracaoSEFAZ.logradouro,
+              numero: configuracaoSEFAZ.numero,
+              complemento: configuracaoSEFAZ.complemento,
+              bairro: configuracaoSEFAZ.bairro,
+              municipio: configuracaoSEFAZ.municipio,
+              uf: configuracaoSEFAZ.uf,
+              cep: configuracaoSEFAZ.cep
+            },
+            phone: configuracaoSEFAZ.telefone,
+            email: configuracaoSEFAZ.emailNotaFiscal
+          },
+          itens: [{
+            descricao: t.description,
+            ncm: '82029000', // NCM padrão para serviços
+            cfop: '5102', // CFOP venda
+            quantidade: 1,
+            unidade: 'UN',
+            valor_unitario: t.amount,
+            valor_total: t.amount,
+            origem: 0,
+            tributos: {
+              icms_aliquota: 18,
+              pis_aliquota: 7.6,
+              cofins_aliquota: 7.6
+            }
+          }],
+          valor_produtos: t.amount,
+          valor_total: t.amount,
+          pagamentos: [{
+            tipo_pagamento: 'TRANSFERENCIA' as any,
+            valor: t.amount
+          }]
+        };
+
+        try {
+          const resultado = await nfService.emitirNFe(nfeData as any);
+          
+          const newDoc: FiscalDocument = {
+            id: resultado.id,
+            userId: user.id,
+            transactionId: t.id,
+            type,
+            number: resultado.numero_nf.toString(),
+            series: configuracaoSEFAZ.serieNFe,
+            accessKey: resultado.chave_acesso,
+            issueDate: new Date().toISOString(),
+            amount: t.amount,
+            status: resultado.status as any,
+            protocoloAutorizacao: resultado.protocolo_autorizacao,
+            dataAutorizacao: resultado.data_autorizacao,
+            nuvemfiscalId: resultado.id
+          };
+
+          const updatedDocs = [...fiscalDocuments, newDoc];
+          saveData('fiscal_documents', updatedDocs);
+          
+          setSelectedTransaction(t);
+          setSelectedDocument(newDoc);
+          setIsFiscalModalOpen(true);
+        } catch (error) {
+          console.error('Erro Nuvemfiscal:', error);
+          alert(`❌ Erro ao emitir: ${error instanceof Error ? error.message : 'Desconhecido'}`);
+        }
+      } else {
+        // SEFAZ direto - requer certificado
+        const cert = getCertificadoAtivo();
+        if (!cert) {
+          alert('❌ Nenhum certificado digital ativo');
+          return;
+        }
+
+        // Gera documento mock (em produção, seria assinado e enviado via SOAP)
+        const newDoc: FiscalDocument = {
+          id: crypto.randomUUID(),
+          userId: user.id,
+          transactionId: t.id,
+          type,
+          number: configuracaoSEFAZ.proximoNumeroNFe.toString(),
+          series: configuracaoSEFAZ.serieNFe,
+          accessKey,
+          issueDate: new Date().toISOString(),
+          amount: t.amount,
+          status: 'enviado'
+        };
+
+        const updatedDocs = [...fiscalDocuments, newDoc];
+        saveData('fiscal_documents', updatedDocs);
+        
+        setSelectedTransaction(t);
+        setSelectedDocument(newDoc);
+        setIsFiscalModalOpen(true);
+      }
+    } catch (error) {
+      console.error('Erro ao gerar NF-e:', error);
+      alert(`❌ Erro: ${error instanceof Error ? error.message : 'Desconhecido'}`);
+    } finally {
+      setGerando(false);
     }
-
-    const updatedDocs = [...fiscalDocuments, newDoc]
-    saveData('fiscal_documents', updatedDocs)
-    
-    // Update transaction with document ID
-    const updatedTransactions = transactions.map(trans => 
-      trans.id === t.id ? { ...trans, documentId: newDoc.id } : trans
-    )
-    saveData('transactions', updatedTransactions)
-
-    setSelectedTransaction(t)
     setSelectedDocument(newDoc)
     setIsFiscalModalOpen(true)
   }
@@ -273,19 +404,30 @@ export default function Finance() {
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={() => handleGenerateFiscal(t, 'NF-e')}
-                        className="px-3 py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all flex items-center gap-1.5 group/btn shadow-inner"
-                        title="Emitir NF-e"
+                        disabled={gerando}
+                        className="px-3 py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all flex items-center gap-1.5 group/btn shadow-inner disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Emitir NF-e (Nota Fiscal Eletrônica)"
                       >
-                        <ShieldCheck size={14} className="group-hover/btn:scale-110 transition-transform" />
-                        NF-e
+                        {gerando ? <div className="animate-spin" size={14}>⟳</div> : <ShieldCheck size={14} className="group-hover/btn:scale-110 transition-transform" />}
+                        {gerando ? 'Processando...' : 'NF-e'}
+                      </button>
+                      <button 
+                        onClick={() => handleGenerateFiscal(t, 'NFC-e')}
+                        disabled={gerando}
+                        className="px-3 py-1.5 bg-purple-500/10 text-purple-500 border border-purple-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all flex item gaps-1.5 group/btn shadow-inner disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Emitir NFC-e (Consumidor)"
+                      >
+                        {gerando ? <div className="animate-spin">⟳</div> : <Zap size={14} className="group-hover/btn:scale-110 transition-transform" />}
+                        {gerando ? '...' : 'NFC-e'}
                       </button>
                       <button 
                         onClick={() => handleGenerateFiscal(t, 'Cupom')}
-                        className="px-3 py-1.5 bg-blue-500/10 text-blue-500 border border-blue-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all flex items-center gap-1.5 group/btn shadow-inner"
+                        disabled={gerando}
+                        className="px-3 py-1.5 bg-blue-500/10 text-blue-500 border border-blue-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all flex items-center gap-1.5 group/btn shadow-inner disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Gerar Cupom Fiscal"
                       >
-                        <Zap size={14} className="group-hover/btn:scale-110 transition-transform" />
-                        Cupom
+                        {gerando ? <div className="animate-spin">⟳</div> : <Receipt size={14} className="group-hover/btn:scale-110 transition-transform" />}
+                        {gerando ? '...' : 'Cupom'}
                       </button>
                     </div>
                   </td>

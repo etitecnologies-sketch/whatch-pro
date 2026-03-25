@@ -72,12 +72,86 @@ export interface FiscalDocument {
   id: string;
   userId: string;
   transactionId: string;
-  type: 'NF-e' | 'NFC-e' | 'Cupom';
+  type: 'NF-e' | 'NFC-e' | 'Cupom' | 'SPED';
   number: string;
   series: string;
   accessKey: string;
   issueDate: string;
   amount: number;
-  status: 'issued' | 'cancelled' | 'pending';
+  status: 'issued' | 'cancelled' | 'pending' | 'enviado' | 'rejeitado' | 'autorizado';
   xml?: string;
+  json?: string; // Para dados em JSON
+  protocoloAutorizacao?: string; // Protocolo de autorização SEFAZ
+  dataAutorizacao?: string;
+  motivo_rejeicao?: string;
+  chaveRFC?: string; // Para SPED
+  nuvemfiscalId?: string; // ID no Nuvemfiscal (para rastreamento)
+}
+
+/**
+ * Configuração de Certificado Digital (e-CNPJ)
+ */
+export interface CertificadoDigital {
+  id: string;
+  userId: string;
+  nomeArquivo: string;
+  base64Data: string; // Arquivo .pfx em Base64
+  senha: string; // Criptografada
+  cnpjTitular: string;
+  nomeTitular: string;
+  dataVencimento: string; // ISO
+  dataInstalacao: string;
+  ativo: boolean;
+  ambiente: 'homologacao' | 'producao';
+}
+
+/**
+ * Configurações SEFAZ da Empresa
+ */
+export interface ConfiguracaoSEFAZ {
+  id: string;
+  userId: string;
+  cnpj: string;
+  razaoSocial: string;
+  nomeFantasia: string;
+  inscricaoEstadual: string;
+  inscricaoMunicipal?: string;
+  uf: string;
+  municipio: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento?: string;
+  bairro: string;
+  
+  // Configurações de emissão
+  modeloNFe: '55' | '65'; // 55=NF-e, 65=NFC-e
+  serieNFe: string;
+  proximoNumeroNFe: number;
+  
+  // API/Integrador escolhido
+  tipoIntegracao: 'sefaz' | 'nuvemfiscal' | 'hibrido';
+  nuvemfiscalApiKey?: string;
+  
+  // Ambiente
+  ambiente: 'homologacao' | 'producao';
+  
+  // Certificado
+  certificadoDigitalAtivo: boolean;
+  certificadoDigitalId?: string;
+  
+  // Configurações de SPED
+  naturezaAtividade: '00' | '01' | '02'; // Comércio, Indústria, Prestação
+  tipoEscrituracao: 'COMPLETA' | 'SIMPLIFICADA';
+  
+  // Contato para nota fiscal
+  emailNotaFiscal?: string;
+  telefone?: string;
+  
+  // Limites
+  limiteNFeMensal?: number;
+  nfeEmitidasMes?: number;
+  
+  dataCriacao: string;
+  dataAtualizacao: string;
 }
