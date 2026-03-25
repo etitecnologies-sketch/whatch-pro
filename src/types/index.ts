@@ -12,7 +12,7 @@ export interface User {
 export interface Quotation {
   id: string;
   userId: string; // ID of the user who created it
-  adminId: string; // ID of the admin (for multi-tenancy)
+  adminId?: string; // Tenant ID
   clientId: string;
   items: QuotationItem[];
   totalAmount: number;
@@ -33,6 +33,7 @@ export interface QuotationItem {
 export interface Client {
   id: string;
   userId: string;
+  adminId?: string; // Tenant ID
   name: string;
   cnpj: string;
   email: string;
@@ -45,6 +46,7 @@ export interface Client {
 export interface Employee {
   id: string;
   userId: string;
+  adminId?: string; // Tenant ID
   name: string;
   email: string;
   role: string;
@@ -59,6 +61,7 @@ export interface Employee {
 export interface Project {
   id: string;
   userId: string;
+  adminId?: string; // Tenant ID
   name: string;
   clientId: string;
   status: 'planning' | 'in-progress' | 'completed' | 'on-hold';
@@ -69,7 +72,7 @@ export interface Project {
 export interface Product {
   id: string;
   userId: string;
-  adminId: string; // ID do admin (para multi-tenancy)
+  adminId?: string; // Tenant ID
   name: string;
   sku: string;
   category: string;
@@ -85,6 +88,7 @@ export interface Product {
 export interface Transaction {
   id: string;
   userId: string;
+  adminId?: string; // Tenant ID
   description: string;
   amount: number;
   type: 'income' | 'expense';
@@ -98,6 +102,7 @@ export interface Transaction {
 export interface FiscalDocument {
   id: string;
   userId: string;
+  adminId?: string; // Tenant ID
   transactionId: string;
   type: 'NF-e' | 'NFC-e' | 'Cupom' | 'SPED';
   number: string;
