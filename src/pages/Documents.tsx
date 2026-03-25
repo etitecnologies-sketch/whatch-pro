@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, FileCheck, ShieldCheck, Zap, Download, Printer, ExternalLink, Calendar, Filter, X } from 'lucide-react'
+import { Search, FileText, ShieldCheck, Zap, Download, Printer, ExternalLink, Calendar, Filter, X } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useData } from '../hooks/useData'

@@ -4,7 +4,7 @@ import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useRef, useState, useEffect } from 'react'
 import html2canvas from 'html2canvas'
-import jsPDF from 'jspdf'
+import { jsPDF } from 'jspdf'
 import { useData } from '../hooks/useData'
 
 function cn(...inputs: ClassValue[]) {

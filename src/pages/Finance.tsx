@@ -4,7 +4,14 @@ import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useData } from '../hooks/useData'
 import { useAuth } from '../hooks/useAuth'
-import { useSEFAZ } from '../hooks/useSEFAZ'
+# Adicionar todas as mudanças
+git add -A
+
+# Fazer commit
+git commit -m "feat: integração 100% Receita Federal - NF-e, NFC-e, SPED, SEFAZ, Nuvemfiscal"
+
+# Push para GitHub (atualiza Vercel automaticamente)
+git push origin mainimport { useSEFAZ } from '../hooks/useSEFAZ'
 import type { Transaction, FiscalDocument } from '../types'
 import FiscalDocumentModal from '../components/FiscalDocumentModal'
 import BoletoModal from '../components/BoletoModal'

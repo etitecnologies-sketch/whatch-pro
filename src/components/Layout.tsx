@@ -18,10 +18,10 @@ import {
   CloudOff,
   Clock as ClockIcon,
   ChevronRight,
-  FileCheck,
   AlertTriangle,
   CheckCircle2,
-  Info
+  Info,
+  FileText as FileTextIcon
 } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -85,9 +85,9 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     { id: 'employees', icon: UsersIcon, label: 'Funcionários' },
     { id: 'inventory', icon: Package, label: 'Estoque' },
     { id: 'projects', icon: Briefcase, label: 'Projetos' },
-    { id: 'quotations', icon: FileCheck, label: 'Orçamentos' },
+    { id: 'quotations', icon: FileTextIcon, label: 'Orçamentos' },
     { id: 'finance', icon: DollarSign, label: 'Financeiro' },
-    { id: 'documents', icon: FileCheck, label: 'Documentos' },
+    { id: 'documents', icon: FileTextIcon, label: 'Documentos' },
   ].filter(item => {
     if (item.id === 'dashboard') return true;
     return canAccess(item.id);

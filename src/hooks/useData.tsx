@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Client, Employee, Product, Project, Transaction, FiscalDocument } from '../types';
+import type { Client, Employee, Product, Project, Transaction, FiscalDocument, Quotation } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { AsaasService } from '../lib/asaas';
