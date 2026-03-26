@@ -30,21 +30,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (hasSupabase) {
           const { data: { session } } = await supabase.auth.getSession();
           
-          // SECURITY: Check if user still exists in Supabase Auth
-          if (session?.user) {
-            const { data: userData, error: userError } = await supabase
-              .from('user_integrations') // Use an existing table to check persistence
-              .select('id')
-              .limit(1)
-              .maybeSingle();
-
-            // If we have a session but can't verify the user (or specific error), 
-            // it might mean the user was deleted in the dashboard
-            if (userError && userError.code === 'PGRST116') {
-               // This is fine, just means no integrations yet
-            }
-          }
-
           if (session?.user) {
             setUser({
               id: session.user.id,
@@ -57,8 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
           }
 
-          const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT' || (event as string) === 'USER_DELETED') {
               setUser(null);
               localStorage.removeItem('whatch_pro_user');
               return;
