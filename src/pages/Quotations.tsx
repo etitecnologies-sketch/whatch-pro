@@ -1,10 +1,12 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { Plus, Search, Edit2, Trash2, FileText, X, ChevronDown, Check, ShoppingCart, User as UserIcon, Printer, Send, DollarSign, CheckCircle2, XCircle } from 'lucide-react'
-import type { Quotation, QuotationItem, Client, Product } from '../types'
+import type { Quotation, QuotationItem, Client, Product, ConfiguracaoSEFAZ } from '../types'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useData } from '../hooks/useData'
 import { useAuth } from '../hooks/useAuth'
+import html2canvas from 'html2canvas'
+import { jsPDF } from 'jspdf'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -27,6 +29,9 @@ export default function Quotations() {
   const [isClientSelectOpen, setIsClientSelectOpen] = useState(false)
   const [isProductSelectOpen, setIsProductSelectOpen] = useState(false)
   const [productSearch, setProductSearch] = useState('')
+  const [pdfQuotation, setPdfQuotation] = useState<Quotation | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
+  const pdfRef = useRef<HTMLDivElement>(null)
 
   const filteredQuotations = useMemo(() => {
     return quotations.filter(q => {
@@ -52,90 +57,51 @@ export default function Quotations() {
     saveData('quotations', updated)
   }
 
-  const handlePrintPDF = (quotation: Quotation) => {
-    const client = clients.find(c => c.id === quotation.clientId)
-    const content = `
-      <html>
-        <head>
-          <title>Orçamento ${quotation.id}</title>
-          <style>
-            body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #1e293b; }
-            h1 { color: #0f172a; margin-bottom: 5px; }
-            .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
-            .info-grid { display: flex; justify-content: space-between; margin-bottom: 40px; }
-            .info-box { background: #f8fafc; padding: 20px; border-radius: 12px; width: 45%; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-            th { text-align: left; padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-size: 12px; text-transform: uppercase; }
-            td { padding: 15px 12px; border-bottom: 1px solid #e2e8f0; }
-            .total { text-align: right; font-size: 24px; font-weight: bold; color: #0f172a; }
-            .notes { background: #f8fafc; padding: 20px; border-radius: 12px; font-size: 14px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Orçamento ${quotation.id}</h1>
-            <p>Data: ${new Date(quotation.createdAt).toLocaleDateString('pt-BR')} | Validade: ${new Date(quotation.validUntil).toLocaleDateString('pt-BR')}</p>
-          </div>
-          
-          <div class="info-grid">
-            <div class="info-box">
-              <strong>Para:</strong><br/>
-              ${client?.name || 'Cliente'}<br/>
-              ${client?.email || ''}<br/>
-              ${client?.phone || ''}
-            </div>
-            <div class="info-box">
-              <strong>Empresa:</strong><br/>
-              Whatch Pro OS<br/>
-              ${user?.email || ''}
-            </div>
-          </div>
+  const getCompany = (): ConfiguracaoSEFAZ | null => {
+    if (!user) return null
+    const tId = user.adminId || user.id
+    const saved = localStorage.getItem(`sefaz_config_${tId}`)
+    return saved ? JSON.parse(saved) : null
+  }
 
-          <table>
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Qtd</th>
-                <th>Preço Unit.</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${quotation.items.map(item => `
-                <tr>
-                  <td>${item.name}</td>
-                  <td>${item.quantity}</td>
-                  <td>${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}</td>
-                  <td>${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+  const buildCompanyLines = (company: ConfiguracaoSEFAZ | null) => {
+    const name = company?.nomeFantasia || company?.razaoSocial || 'Empresa'
+    const cnpj = company?.cnpj ? `CNPJ: ${company.cnpj}` : ''
+    const ie = company?.inscricaoEstadual ? `IE: ${company.inscricaoEstadual}` : ''
+    const phone = company?.telefone || company?.whatsapp || ''
+    const email = company?.emailComercial || company?.emailNotaFiscal || ''
+    const addr1 = company?.logradouro ? `${company.logradouro}${company.numero ? `, ${company.numero}` : ''}${company.complemento ? ` - ${company.complemento}` : ''}` : ''
+    const addr2 = `${company?.bairro ? company.bairro : ''}${company?.municipio ? `, ${company.municipio}` : ''}${company?.uf ? ` - ${company.uf}` : ''}${company?.cep ? ` CEP ${company.cep}` : ''}`.trim()
+    const site = company?.site || ''
+    return { name, cnpj, ie, phone, email, addr1, addr2, site, logoUrl: company?.logoUrl || '' }
+  }
 
-          <div class="total">
-            Total: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quotation.totalAmount)}
-          </div>
+  const generateQuotationPDF = async (quotation: Quotation) => {
+    setPdfQuotation(quotation)
+    await new Promise(requestAnimationFrame)
+    await new Promise(requestAnimationFrame)
 
-          ${quotation.notes ? `
-            <div class="notes">
-              <strong>Observações:</strong><br/>
-              ${quotation.notes}
-            </div>
-          ` : ''}
-        </body>
-      </html>
-    `
+    if (!pdfRef.current) return
 
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      printWindow.document.write(content)
-      printWindow.document.close()
-      printWindow.focus()
-      // setTimeout to allow fonts/styles to load before printing
-      setTimeout(() => {
-        printWindow.print()
-        printWindow.close()
-      }, 250)
+    try {
+      setIsExporting(true)
+      const canvas = await html2canvas(pdfRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      })
+
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: [canvas.width / 2, canvas.height / 2]
+      })
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2)
+      pdf.save(`Orcamento_${quotation.id}.pdf`)
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -149,12 +115,14 @@ export default function Quotations() {
     const itemsText = quotation.items.map(i => `- ${i.quantity}x ${i.name}`).join('\n')
     const total = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quotation.totalAmount)
     
-    const message = `Olá, ${client.name}!\n\nAqui está o seu orçamento (Ref: ${quotation.id}):\n\n*Itens:*\n${itemsText}\n\n*Valor Total:* ${total}\n*Válido até:* ${new Date(quotation.validUntil).toLocaleDateString('pt-BR')}\n\nQualquer dúvida, estamos à disposição!`
+    const message = `Olá, ${client.name}!\n\nVou te enviar o orçamento em PDF (Ref: ${quotation.id}).\n\n*Itens:*\n${itemsText}\n\n*Valor Total:* ${total}\n*Válido até:* ${new Date(quotation.validUntil).toLocaleDateString('pt-BR')}\n\nQualquer dúvida, estamos à disposição!`
     
     const phone = client.phone.replace(/\D/g, '')
     const whatsappUrl = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`
     
-    window.open(whatsappUrl, '_blank')
+    void generateQuotationPDF(quotation).then(() => {
+      window.open(whatsappUrl, '_blank')
+    })
     handleUpdateStatus(quotation.id, 'sent')
   }
 
@@ -251,9 +219,89 @@ export default function Quotations() {
 
   const selectedClient = clients.find(c => c.id === selectedClientId)
   const filteredProducts = products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+  const companyLines = useMemo(() => buildCompanyLines(getCompany()), [user])
 
   return (
     <div className="space-y-10 pb-20">
+      <div className="fixed -left-[99999px] top-0 w-[800px] bg-white text-slate-900" aria-hidden="true">
+        <div ref={pdfRef} className="p-10">
+          {(() => {
+            const quotation = pdfQuotation
+            if (!quotation) return null
+            const client = clients.find(c => c.id === quotation.clientId)
+            return (
+              <div className="space-y-8">
+                <div className="flex items-start justify-between border-b border-slate-200 pb-6">
+                  <div className="flex items-center gap-4">
+                    {companyLines.logoUrl ? (
+                      <img src={companyLines.logoUrl} className="w-14 h-14 object-contain" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-600">
+                        {companyLines.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <h1 className="text-2xl font-black">{companyLines.name}</h1>
+                      <p className="text-xs text-slate-600">{[companyLines.cnpj, companyLines.ie].filter(Boolean).join(' • ')}</p>
+                      <p className="text-xs text-slate-600">{[companyLines.phone, companyLines.email, companyLines.site].filter(Boolean).join(' • ')}</p>
+                      <p className="text-xs text-slate-600">{[companyLines.addr1, companyLines.addr2].filter(Boolean).join(' • ')}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <h2 className="text-xl font-black">Orçamento {quotation.id}</h2>
+                    <p className="text-xs text-slate-600">Data: {new Date(quotation.createdAt).toLocaleDateString('pt-BR')}</p>
+                    <p className="text-xs text-slate-600">Validade: {new Date(quotation.validUntil).toLocaleDateString('pt-BR')}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="p-4 rounded-xl border border-slate-200">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Cliente</p>
+                    <p className="text-sm font-black">{client?.name || 'Cliente'}</p>
+                    <p className="text-xs text-slate-600">{[client?.email, client?.phone].filter(Boolean).join(' • ')}</p>
+                  </div>
+                  <div className="p-4 rounded-xl border border-slate-200">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Status</p>
+                    <p className="text-sm font-black uppercase">{quotation.status}</p>
+                    <p className="text-xs text-slate-600">Ref: {quotation.id}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 overflow-hidden">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Item</th>
+                        <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Qtd</th>
+                        <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Preço</th>
+                        <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {quotation.items.map((item, idx) => (
+                        <tr key={`${item.productId}-${idx}`} className="border-t border-slate-200">
+                          <td className="px-4 py-3 text-sm font-bold">{item.name}</td>
+                          <td className="px-4 py-3 text-sm">{item.quantity}</td>
+                          <td className="px-4 py-3 text-sm">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}</td>
+                          <td className="px-4 py-3 text-sm font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex items-start justify-between">
+                  <div className="text-xs text-slate-600 whitespace-pre-wrap">{quotation.notes || ''}</div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Total</p>
+                    <p className="text-2xl font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quotation.totalAmount)}</p>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      </div>
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tightest mb-2">
@@ -346,7 +394,7 @@ export default function Quotations() {
                             <button onClick={() => handleUpdateStatus(q.id, 'rejected')} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Rejeitar"><XCircle size={18} /></button>
                           </>
                         )}
-                        <button onClick={() => handlePrintPDF(q)} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Imprimir PDF"><Printer size={18} /></button>
+                        <button onClick={() => void generateQuotationPDF(q)} disabled={isExporting} className="p-2 text-slate-400 hover:text-primary transition-colors disabled:opacity-50" title="Gerar PDF"><Printer size={18} /></button>
                         <button onClick={() => handleSendWhatsApp(q)} className="p-2 text-slate-400 hover:text-green-500 transition-colors" title="Enviar WhatsApp"><Send size={18} /></button>
                         <button onClick={() => openModal(q)} className="p-2 text-slate-400 hover:text-blue-500 transition-colors" title="Editar"><Edit2 size={18} /></button>
                         <button onClick={() => handleDelete(q.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Excluir"><Trash2 size={18} /></button>

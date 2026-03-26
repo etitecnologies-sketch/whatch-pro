@@ -61,11 +61,17 @@ export default function Settings() {
     razaoSocial: '',
     nomeFantasia: '',
     inscricaoEstadual: '',
+    inscricaoMunicipal: '',
+    site: '',
+    emailComercial: '',
+    whatsapp: '',
+    logoUrl: '',
     uf: 'SP',
     municipio: '',
     cep: '',
     logradouro: '',
     numero: '',
+    complemento: '',
     bairro: '',
     modeloNFe: '55',
     serieNFe: '001',
@@ -803,6 +809,16 @@ export default function Settings() {
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
                   />
                 </div>
+                <div className="space-y-2 col-span-1 md:col-span-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Nome Fantasia</label>
+                  <input 
+                    type="text" 
+                    value={sefazData.nomeFantasia}
+                    onChange={e => setSefazData({...sefazData, nomeFantasia: e.target.value})}
+                    placeholder="Nome Comercial" 
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                  />
+                </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Inscrição Estadual</label>
                   <input 
@@ -810,6 +826,16 @@ export default function Settings() {
                     value={sefazData.inscricaoEstadual}
                     onChange={e => setSefazData({...sefazData, inscricaoEstadual: e.target.value})}
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Inscrição Municipal</label>
+                  <input 
+                    type="text" 
+                    value={sefazData.inscricaoMunicipal || ''}
+                    onChange={e => setSefazData({...sefazData, inscricaoMunicipal: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                    placeholder="Opcional"
                   />
                 </div>
                 <div className="space-y-2">
@@ -832,6 +858,118 @@ export default function Settings() {
                     onChange={e => setSefazData({...sefazData, municipio: e.target.value})}
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
                   />
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-white/10">
+                <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-1 border-l-2 border-blue-500 ml-1">Contato & Identidade</h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Telefone</label>
+                    <input 
+                      type="text" 
+                      value={sefazData.telefone || ''}
+                      onChange={e => setSefazData({...sefazData, telefone: e.target.value})}
+                      placeholder="(00) 0000-0000" 
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">WhatsApp</label>
+                    <input 
+                      type="text" 
+                      value={sefazData.whatsapp || ''}
+                      onChange={e => setSefazData({...sefazData, whatsapp: e.target.value})}
+                      placeholder="(00) 00000-0000" 
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">E-mail Comercial</label>
+                    <input 
+                      type="email" 
+                      value={sefazData.emailComercial || ''}
+                      onChange={e => setSefazData({...sefazData, emailComercial: e.target.value})}
+                      placeholder="contato@empresa.com" 
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Site</label>
+                    <input 
+                      type="text" 
+                      value={sefazData.site || ''}
+                      onChange={e => setSefazData({...sefazData, site: e.target.value})}
+                      placeholder="https://suaempresa.com.br" 
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Logo (URL)</label>
+                    <input 
+                      type="text" 
+                      value={sefazData.logoUrl || ''}
+                      onChange={e => setSefazData({...sefazData, logoUrl: e.target.value})}
+                      placeholder="https://.../logo.png" 
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-white/10">
+                <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-1 border-l-2 border-purple-500 ml-1">Endereço da Empresa</h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">CEP</label>
+                    <input 
+                      type="text" 
+                      value={sefazData.cep}
+                      onChange={e => setSefazData({...sefazData, cep: e.target.value})}
+                      placeholder="00000-000" 
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Logradouro</label>
+                    <input 
+                      type="text" 
+                      value={sefazData.logradouro}
+                      onChange={e => setSefazData({...sefazData, logradouro: e.target.value})}
+                      placeholder="Rua/Av" 
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Número</label>
+                    <input 
+                      type="text" 
+                      value={sefazData.numero}
+                      onChange={e => setSefazData({...sefazData, numero: e.target.value})}
+                      placeholder="123" 
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Complemento</label>
+                    <input 
+                      type="text" 
+                      value={sefazData.complemento || ''}
+                      onChange={e => setSefazData({...sefazData, complemento: e.target.value})}
+                      placeholder="Sala/Apto (Opcional)" 
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Bairro</label>
+                    <input 
+                      type="text" 
+                      value={sefazData.bairro}
+                      onChange={e => setSefazData({...sefazData, bairro: e.target.value})}
+                      placeholder="Bairro" 
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                    />
+                  </div>
                 </div>
               </div>
             </div>

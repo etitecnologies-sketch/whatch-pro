@@ -205,6 +205,10 @@ export interface ConfiguracaoSEFAZ {
   nomeFantasia: string;
   inscricaoEstadual: string;
   inscricaoMunicipal?: string;
+  site?: string;
+  emailComercial?: string;
+  whatsapp?: string;
+  logoUrl?: string;
   uf: string;
   municipio: string;
   cep: string;
