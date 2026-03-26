@@ -12,12 +12,32 @@ export default function PDV() {
 
   // Filter out products with 0 quantity and match search term
   const availableProducts = useMemo(() => {
+    if (!searchTerm) return products.filter(p => p.quantity > 0)
+    
     return products.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+      const search = searchTerm.toLowerCase()
+      const matchesSearch = 
+        (p.name && p.name.toLowerCase().includes(search)) || 
+        (p.sku && p.sku.toLowerCase().includes(search))
       return matchesSearch && p.quantity > 0
     })
   }, [products, searchTerm])
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      // Se tiver apenas 1 produto no resultado ou houver uma correspondência exata de SKU, adiciona direto
+      const exactMatch = availableProducts.find(p => p.sku && p.sku.toLowerCase() === searchTerm.toLowerCase())
+      
+      if (exactMatch) {
+        addToCart(exactMatch)
+        setSearchTerm('')
+      } else if (availableProducts.length === 1) {
+        addToCart(availableProducts[0])
+        setSearchTerm('')
+      }
+    }
+  }
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -93,9 +113,11 @@ export default function PDV() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
               type="text" 
-              placeholder="Buscar produto (Nome ou SKU)"
+              placeholder="Buscar ou Bipar (SKU/Código)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              autoFocus
               className="w-full pl-10 pr-4 py-2 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm text-white"
             />
           </div>
