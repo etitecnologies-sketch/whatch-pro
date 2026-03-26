@@ -43,7 +43,7 @@ export default function Quotations() {
   const handleDelete = (id: string) => {
     if (confirm('Tem certeza que deseja excluir este orçamento?')) {
       const updated = quotations.filter(q => q.id !== id)
-      setQuotations(updated)
+      saveData('quotations', updated)
     }
   }
 
@@ -112,7 +112,7 @@ export default function Quotations() {
       updated = [...quotations, newQuotation]
     }
     
-    setQuotations(updated)
+    saveData('quotations', updated)
     setIsModalOpen(false)
     resetForm()
   }

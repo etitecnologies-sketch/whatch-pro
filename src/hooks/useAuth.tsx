@@ -262,15 +262,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const canAccess = (permission: string) => {
     if (!user) return false;
     
-    // Master and Admins have full access
-    if (user.role === 'admin' || user.id === 'master-id-000' || (user as any).role === 'user') return true;
+    // Master has full access to everything
+    if (user.id === 'master-id-000') return true;
     
-    // If it's a sub-user but has no permissions array yet (legacy or first login), 
-    // give them access to ALL modules by default to maintain previous behavior
+    // Admins have full access by default
+    if (user.role === 'admin') return true;
+    
+    // Support for legacy "user" role (if any)
+    if ((user as any).role === 'user') return true;
+    
+    // Sub-users with no permissions array yet (legacy support)
     if (user.role === 'sub-user' && !user.permissions) {
         return true;
     }
 
+    // Standard permission check for sub-users
     return user.permissions?.includes(permission) || false;
   };
 

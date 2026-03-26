@@ -6,13 +6,15 @@ export function useSEFAZ() {
   const { user } = useAuth();
   const [configuracaoSEFAZ, setConfiguracaoSEFAZ] = useState<ConfiguracaoSEFAZ | null>(() => {
     if (!user) return null;
-    const saved = localStorage.getItem(`sefaz_config_${user.id}`);
+    const tId = user.adminId || user.id;
+    const saved = localStorage.getItem(`sefaz_config_${tId}`);
     return saved ? JSON.parse(saved) : null;
   });
 
   const [certificados, setCertificados] = useState<CertificadoDigital[]>(() => {
     if (!user) return [];
-    const saved = localStorage.getItem(`certificados_${user.id}`);
+    const tId = user.adminId || user.id;
+    const saved = localStorage.getItem(`certificados_${tId}`);
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -24,18 +26,20 @@ export function useSEFAZ() {
    */
   const salvarConfiguracaoSEFAZ = useCallback((config: Omit<ConfiguracaoSEFAZ, 'id' | 'userId' | 'dataCriacao' | 'dataAtualizacao'>) => {
     if (!user) return;
+    const tId = user.adminId || user.id;
 
     const novaConfig: ConfiguracaoSEFAZ = {
       ...config,
       id: configuracaoSEFAZ?.id || crypto.randomUUID(),
       userId: user.id,
+      adminId: tId,
       dataCriacao: configuracaoSEFAZ?.dataCriacao || new Date().toISOString(),
       dataAtualizacao: new Date().toISOString(),
       nfeEmitidasMes: configuracaoSEFAZ?.nfeEmitidasMes || 0,
     };
 
     setConfiguracaoSEFAZ(novaConfig);
-    localStorage.setItem(`sefaz_config_${user.id}`, JSON.stringify(novaConfig));
+    localStorage.setItem(`sefaz_config_${tId}`, JSON.stringify(novaConfig));
     setErro(null);
   }, [user, configuracaoSEFAZ]);
 
@@ -44,6 +48,7 @@ export function useSEFAZ() {
    */
   const carregarCertificado = useCallback(async (arquivo: File, senha: string, cnpjTitular: string, nomeTitular: string) => {
     if (!user) return;
+    const tId = user.adminId || user.id;
 
     setIsLoading(true);
     try {
@@ -63,6 +68,7 @@ export function useSEFAZ() {
             const novoCertificado: CertificadoDigital = {
               id: crypto.randomUUID(),
               userId: user.id,
+              adminId: tId,
               nomeArquivo: arquivo.name,
               base64Data: base64,
               senha: btoa(senha), // Criptografia básica
@@ -76,7 +82,7 @@ export function useSEFAZ() {
 
             const certsAtualizados = [...certificados, novoCertificado];
             setCertificados(certsAtualizados);
-            localStorage.setItem(`certificados_${user.id}`, JSON.stringify(certsAtualizados));
+            localStorage.setItem(`certificados_${tId}`, JSON.stringify(certsAtualizados));
             
             setErro(null);
             resolve();
@@ -108,10 +114,11 @@ export function useSEFAZ() {
    */
   const removerCertificado = useCallback((id: string) => {
     if (!user) return;
+    const tId = user.adminId || user.id;
 
     const certsAtualizados = certificados.filter(c => c.id !== id);
     setCertificados(certsAtualizados);
-    localStorage.setItem(`certificados_${user.id}`, JSON.stringify(certsAtualizados));
+    localStorage.setItem(`certificados_${tId}`, JSON.stringify(certsAtualizados));
   }, [user, certificados]);
 
   /**
@@ -125,7 +132,8 @@ export function useSEFAZ() {
     setCertificados(certsAtualizados);
     
     if (user) {
-      localStorage.setItem(`certificados_${user.id}`, JSON.stringify(certsAtualizados));
+      const tId = user.adminId || user.id;
+      localStorage.setItem(`certificados_${tId}`, JSON.stringify(certsAtualizados));
     }
   }, [user, certificados]);
 
@@ -168,6 +176,7 @@ export function useSEFAZ() {
    */
   const proximoNumeroNFe = useCallback(() => {
     if (!user || !configuracaoSEFAZ) return '1';
+    const tId = user.adminId || user.id;
 
     const novaConfig = {
       ...configuracaoSEFAZ,
@@ -176,7 +185,7 @@ export function useSEFAZ() {
     };
 
     setConfiguracaoSEFAZ(novaConfig);
-    localStorage.setItem(`sefaz_config_${user.id}`, JSON.stringify(novaConfig));
+    localStorage.setItem(`sefaz_config_${tId}`, JSON.stringify(novaConfig));
 
     return novaConfig.proximoNumeroNFe.toString();
   }, [user, configuracaoSEFAZ]);

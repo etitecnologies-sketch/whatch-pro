@@ -60,6 +60,7 @@ export default function Finance() {
       const newTransaction: Transaction = {
         id: crypto.randomUUID(),
         userId: user.id,
+        adminId: user.adminId || user.id, // Multi-tenant link
         ...formData,
         status: 'pending'
       }

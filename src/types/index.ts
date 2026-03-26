@@ -82,6 +82,7 @@ export interface Product {
   margin: number;    // Margem de lucro (%)
   taxRate: number;   // Impostos (%)
   price: number;     // Preço final de venda
+  ncm?: string;      // Nomenclatura Comum do Mercosul (Obrigatório para NF-e)
   status: 'in-stock' | 'low-stock' | 'out-of-stock';
 }
 

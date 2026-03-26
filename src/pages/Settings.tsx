@@ -24,38 +24,89 @@ import {
   AlertTriangle,
   ExternalLink,
   ChevronRight,
-  Database
+  Database,
+  ShieldCheck
 } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useAuth } from '../hooks/useAuth'
 import { useAppearance } from '../hooks/useAppearance'
 import { useData } from '../hooks/useData'
+import { useSEFAZ } from '../hooks/useSEFAZ'
 import { supabase } from '../lib/supabase'
 import type { AsaasEnvironment } from '../lib/asaas'
+import type { ConfiguracaoSEFAZ } from '../types'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-type SettingsSection = 'profile' | 'notifications' | 'security' | 'appearance' | 'reports' | 'integrations' | 'system'
+type SettingsSection = 'profile' | 'notifications' | 'security' | 'appearance' | 'reports' | 'integrations' | 'receita' | 'system'
 
 export default function Settings() {
   const { user, canAccess } = useAuth()
   const { theme, setTheme, accentColor, setAccentColor } = useAppearance()
   const { syncAllClientsWithAsaas } = useData()
+  const { configuracaoSEFAZ, certificados, salvarConfiguracaoSEFAZ, carregarCertificado, removerCertificado, ativarCertificado } = useSEFAZ()
   const [activeSection, setActiveSection] = useState<SettingsSection>('profile')
   const [isSaved, setIsSaved] = useState(false)
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
   const [configuringIntegration, setConfiguringIntegration] = useState<string | null>(null)
-  const [asaasToken, setAsaasToken] = useState(() => localStorage.getItem('whatch_pro_asaas_token') || '')
-  const [asaasEnv, setAsaasEnv] = useState<AsaasEnvironment>(() => (localStorage.getItem('whatch_pro_asaas_env') as AsaasEnvironment) || 'production')
-  const [asaasProxyEnabled, setAsaasProxyEnabled] = useState(() => localStorage.getItem('whatch_pro_asaas_proxy_enabled') === 'true')
+  
+  // SEFAZ State
+  const [sefazData, setSefazData] = useState<Partial<ConfiguracaoSEFAZ>>(configuracaoSEFAZ || {
+    cnpj: '',
+    razaoSocial: '',
+    nomeFantasia: '',
+    inscricaoEstadual: '',
+    uf: 'SP',
+    municipio: '',
+    cep: '',
+    logradouro: '',
+    numero: '',
+    bairro: '',
+    modeloNFe: '55',
+    serieNFe: '001',
+    proximoNumeroNFe: 1,
+    tipoIntegracao: 'hibrido',
+    ambiente: 'homologacao',
+    naturezaAtividade: '00',
+    tipoEscrituracao: 'COMPLETA'
+  })
+
+  useEffect(() => {
+    if (configuracaoSEFAZ) setSefazData(configuracaoSEFAZ)
+  }, [configuracaoSEFAZ])
+
+  const [certFile, setCertFile] = useState<File | null>(null)
+  const [certPass, setCertFilePass] = useState('')
+  const [isUploadingCert, setIsUploadingCert] = useState(false)
+  const [asaasToken, setAsaasToken] = useState(() => {
+    const tId = user?.adminId || user?.id;
+    return localStorage.getItem(`whatch_pro_asaas_token_${tId}`) || '';
+  })
+  const [asaasEnv, setAsaasEnv] = useState<AsaasEnvironment>(() => {
+    const tId = user?.adminId || user?.id;
+    return (localStorage.getItem(`whatch_pro_asaas_env_${tId}`) as AsaasEnvironment) || 'production';
+  })
+  const [asaasProxyEnabled, setAsaasProxyEnabled] = useState(() => {
+    const tId = user?.adminId || user?.id;
+    return localStorage.getItem(`whatch_pro_asaas_proxy_enabled_${tId}`) === 'true';
+  })
   
   // NuvemFiscal state
-  const [nuvemfiscalToken, setNuvemfiscalToken] = useState(() => localStorage.getItem('whatch_pro_nuvemfiscal_token') || '')
-  const [nuvemfiscalEnv, setNuvemfiscalEnv] = useState<'sandbox' | 'producao'>(() => (localStorage.getItem('whatch_pro_nuvemfiscal_env') as any) || 'sandbox')
-  const [nuvemfiscalProxyEnabled, setNuvemfiscalProxyEnabled] = useState(() => localStorage.getItem('whatch_pro_nuvemfiscal_proxy_enabled') === 'true')
+  const [nuvemfiscalToken, setNuvemfiscalToken] = useState(() => {
+    const tId = user?.adminId || user?.id;
+    return localStorage.getItem(`whatch_pro_nuvemfiscal_token_${tId}`) || '';
+  })
+  const [nuvemfiscalEnv, setNuvemfiscalEnv] = useState<'sandbox' | 'producao'>(() => {
+    const tId = user?.adminId || user?.id;
+    return (localStorage.getItem(`whatch_pro_nuvemfiscal_env_${tId}`) as any) || 'sandbox';
+  })
+  const [nuvemfiscalProxyEnabled, setNuvemfiscalProxyEnabled] = useState(() => {
+    const tId = user?.adminId || user?.id;
+    return localStorage.getItem(`whatch_pro_nuvemfiscal_proxy_enabled_${tId}`) === 'true';
+  })
 
   const [showToken, setShowToken] = useState(false)
   const [isSyncingClients, setIsSyncingClients] = useState(false)
@@ -96,11 +147,13 @@ export default function Settings() {
 
   const handleSaveAsaasConfig = async (token: string, env: AsaasEnvironment, proxy: boolean) => {
     try {
+      const tId = user?.adminId || user?.id;
       if (proxy && user) {
         const { error } = await supabase
           .from('user_integrations')
           .upsert({ 
             user_id: user.id,
+            admin_id: tId,
             asaas_token: token,
             asaas_env: env,
             updated_at: new Date().toISOString()
@@ -112,9 +165,9 @@ export default function Settings() {
       setAsaasToken(token)
       setAsaasEnv(env)
       setAsaasProxyEnabled(proxy)
-      localStorage.setItem('whatch_pro_asaas_token', token)
-      localStorage.setItem('whatch_pro_asaas_env', env)
-      localStorage.setItem('whatch_pro_asaas_proxy_enabled', proxy.toString())
+      localStorage.setItem(`whatch_pro_asaas_token_${tId}`, token)
+      localStorage.setItem(`whatch_pro_asaas_env_${tId}`, env)
+      localStorage.setItem(`whatch_pro_asaas_proxy_enabled_${tId}`, proxy.toString())
       setIntegrationStates(prev => ({ ...prev, 'Asaas Gateway': (token || proxy) ? 'Conectado' : 'Pendente' }))
       setConfiguringIntegration(null)
       setIsSaved(true)
@@ -142,11 +195,13 @@ export default function Settings() {
 
   const handleSaveNuvemFiscalConfig = async (token: string, env: 'sandbox' | 'producao', proxy: boolean) => {
     try {
+      const tId = user?.adminId || user?.id;
       if (proxy && user) {
         const { error } = await supabase
           .from('user_integrations')
           .upsert({ 
             user_id: user.id,
+            admin_id: tId,
             nuvemfiscal_token: token,
             nuvemfiscal_env: env,
             updated_at: new Date().toISOString()
@@ -158,9 +213,9 @@ export default function Settings() {
       setNuvemfiscalToken(token)
       setNuvemfiscalEnv(env)
       setNuvemfiscalProxyEnabled(proxy)
-      localStorage.setItem('whatch_pro_nuvemfiscal_token', token)
-      localStorage.setItem('whatch_pro_nuvemfiscal_env', env)
-      localStorage.setItem('whatch_pro_nuvemfiscal_proxy_enabled', proxy.toString())
+      localStorage.setItem(`whatch_pro_nuvemfiscal_token_${tId}`, token)
+      localStorage.setItem(`whatch_pro_nuvemfiscal_env_${tId}`, env)
+      localStorage.setItem(`whatch_pro_nuvemfiscal_proxy_enabled_${tId}`, proxy.toString())
       setIntegrationStates(prev => ({ ...prev, 'NuvemFiscal NF-e': (token || proxy) ? 'Conectado' : 'Pendente' }))
       setConfiguringIntegration(null)
       setIsSaved(true)
@@ -191,10 +246,12 @@ export default function Settings() {
     { id: 'appearance', label: 'Aparência', icon: Palette },
     { id: 'reports', label: 'Relatórios', icon: FileText },
     { id: 'integrations', label: 'Integrações', icon: Globe },
+    { id: 'receita', label: 'Receita Federal', icon: ShieldCheck },
     { id: 'system', label: 'Sistema & Updates', icon: Cpu },
   ].filter(section => {
     if (section.id === 'profile' || section.id === 'notifications') return true;
     if (section.id === 'appearance') return canAccess('appearance');
+    if (section.id === 'receita') return user?.role === 'admin' || user?.id === 'master-id-000';
     return user?.role === 'admin' || user?.id === 'master-id-000';
   })
 
@@ -653,6 +710,260 @@ export default function Settings() {
                 </div>
               </div>
             )}
+          </div>
+        );
+      case 'receita':
+        return (
+          <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+            {/* Header / Intro */}
+            <div className="p-6 rounded-[32px] bg-primary/5 border border-primary/10 flex items-start gap-4">
+              <div className="p-3 bg-primary/10 text-primary rounded-2xl">
+                <ShieldCheck size={24} />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-1">Módulo Fiscal Brasileiro</h4>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter leading-relaxed">
+                  Configure sua empresa para emissão de NF-e, NFC-e e geração de arquivos SPED. 
+                  Este sistema possui integração direta com SEFAZ e via API Nuvemfiscal.
+                </p>
+              </div>
+            </div>
+
+            {/* Empresa Info */}
+            <div className="space-y-6">
+              <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-1 border-l-2 border-primary ml-1">Dados da Empresa</h5>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">CNPJ</label>
+                  <input 
+                    type="text" 
+                    value={sefazData.cnpj}
+                    onChange={e => setSefazData({...sefazData, cnpj: e.target.value})}
+                    placeholder="00.000.000/0001-00" 
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                  />
+                </div>
+                <div className="space-y-2 col-span-1 md:col-span-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Razão Social</label>
+                  <input 
+                    type="text" 
+                    value={sefazData.razaoSocial}
+                    onChange={e => setSefazData({...sefazData, razaoSocial: e.target.value})}
+                    placeholder="Nome Empresarial Completo" 
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Inscrição Estadual</label>
+                  <input 
+                    type="text" 
+                    value={sefazData.inscricaoEstadual}
+                    onChange={e => setSefazData({...sefazData, inscricaoEstadual: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">UF (Estado)</label>
+                  <select 
+                    value={sefazData.uf}
+                    onChange={e => setSefazData({...sefazData, uf: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner appearance-none"
+                  >
+                    {['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'].map(uf => (
+                      <option key={uf} value={uf}>{uf}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Município</label>
+                  <input 
+                    type="text" 
+                    value={sefazData.municipio}
+                    onChange={e => setSefazData({...sefazData, municipio: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Config Emissão */}
+            <div className="space-y-6">
+              <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-1 border-l-2 border-purple-500 ml-1">Configuração de Emissão</h5>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tipo Integração</label>
+                  <select 
+                    value={sefazData.tipoIntegracao}
+                    onChange={e => setSefazData({...sefazData, tipoIntegracao: e.target.value as any})}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner appearance-none"
+                  >
+                    <option value="sefaz">SEFAZ Direto (Manual)</option>
+                    <option value="nuvemfiscal">API Nuvemfiscal</option>
+                    <option value="hibrido">Híbrido (Auto + Backup)</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Ambiente</label>
+                  <select 
+                    value={sefazData.ambiente}
+                    onChange={e => setSefazData({...sefazData, ambiente: e.target.value as any})}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner appearance-none"
+                  >
+                    <option value="homologacao">Homologação (Testes)</option>
+                    <option value="producao">Produção (Real)</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Série NF-e</label>
+                  <input 
+                    type="text" 
+                    value={sefazData.serieNFe}
+                    onChange={e => setSefazData({...sefazData, serieNFe: e.target.value})}
+                    placeholder="001" 
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Próxima Nota</label>
+                  <input 
+                    type="number" 
+                    value={sefazData.proximoNumeroNFe}
+                    onChange={e => setSefazData({...sefazData, proximoNumeroNFe: parseInt(e.target.value) || 1})}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                  />
+                </div>
+              </div>
+              
+              {sefazData.tipoIntegracao !== 'sefaz' && (
+                <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Nuvemfiscal API Key</label>
+                  <input 
+                    type="password" 
+                    value={sefazData.nuvemfiscalApiKey}
+                    onChange={e => setSefazData({...sefazData, nuvemfiscalApiKey: e.target.value})}
+                    placeholder="Secret Key da Nuvemfiscal" 
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Certificado Digital */}
+            <div className="space-y-6">
+              <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-1 border-l-2 border-green-500 ml-1">Certificado Digital (e-CNPJ)</h5>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Certificado Atual */}
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Certificados Instalados</p>
+                  {certificados.length === 0 ? (
+                    <div className="p-8 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[32px] flex flex-col items-center justify-center text-center gap-3">
+                      <Lock size={24} className="text-slate-300" />
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Nenhum certificado instalado</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {certificados.map(cert => (
+                        <div key={cert.id} className={cn(
+                          "p-4 rounded-3xl border transition-all flex items-center justify-between group",
+                          cert.ativo ? "bg-green-500/5 border-green-500/20" : "bg-slate-50 dark:bg-slate-900 border-transparent"
+                        )}>
+                          <div className="flex items-center gap-3">
+                            <div className={cn("p-2 rounded-xl", cert.ativo ? "bg-green-500/10 text-green-500" : "bg-slate-200 dark:bg-slate-800 text-slate-400")}>
+                              <Shield size={18} />
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-slate-900 dark:text-white leading-none mb-1">{cert.nomeArquivo}</p>
+                              <p className="text-[9px] font-bold text-slate-500 uppercase">Expira em: {new Date(cert.dataVencimento).toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {!cert.ativo && (
+                              <button 
+                                onClick={() => ativarCertificado(cert.id)}
+                                className="p-2 text-slate-400 hover:text-green-500 transition-colors"
+                                title="Ativar este certificado"
+                              >
+                                <Zap size={16} />
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => removerCertificado(cert.id)}
+                              className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                              title="Remover"
+                            >
+                              <History size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Novo Certificado */}
+                <div className="p-6 rounded-[32px] bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 space-y-4">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Instalar Novo Certificado (.pfx / .p12)</p>
+                  <div className="space-y-4">
+                    <input 
+                      type="file" 
+                      accept=".pfx,.p12"
+                      onChange={e => setCertFile(e.target.files?.[0] || null)}
+                      className="w-full text-[10px] text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-primary file:text-white hover:file:bg-primary/80" 
+                    />
+                    <input 
+                      type="password" 
+                      placeholder="Senha do Certificado"
+                      value={certPass}
+                      onChange={e => setCertFilePass(e.target.value)}
+                      className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-xs font-bold" 
+                    />
+                    <button 
+                      onClick={async () => {
+                        if (!certFile || !certPass) return alert('Selecione o arquivo e digite a senha');
+                        setIsUploadingCert(true);
+                        try {
+                          await carregarCertificado(certFile, certPass, sefazData.cnpj || '', sefazData.razaoSocial || '');
+                          setCertFile(null);
+                          setCertFilePass('');
+                          alert('✅ Certificado instalado com sucesso!');
+                        } catch (err) {
+                          alert('❌ Erro ao instalar: ' + (err as Error).message);
+                        } finally {
+                          setIsUploadingCert(false);
+                        }
+                      }}
+                      disabled={isUploadingCert || !certFile}
+                      className="w-full py-3 bg-slate-900 dark:bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isUploadingCert ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                      Instalar Certificado
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Ações Finais */}
+            <div className="pt-6 border-t border-white/10 flex flex-col md:flex-row gap-4">
+              <button 
+                onClick={() => {
+                  salvarConfiguracaoSEFAZ(sefazData as ConfiguracaoSEFAZ);
+                  setIsSaved(true);
+                  setTimeout(() => setIsSaved(false), 3000);
+                }}
+                className="flex-1 py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest glow-primary hover:scale-105 transition-all flex items-center justify-center gap-3 shadow-lg shadow-primary/20"
+              >
+                <Save size={18} />
+                Salvar Todas as Configurações Fiscais
+              </button>
+              <button 
+                className="px-8 py-4 bg-white/5 border border-white/10 text-slate-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+              >
+                <Download size={18} />
+                Gerar SPED EFD (Mês Atual)
+              </button>
+            </div>
           </div>
         );
       case 'system':

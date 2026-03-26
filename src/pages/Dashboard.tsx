@@ -14,6 +14,10 @@ export default function Dashboard() {
     .filter(t => t.type === 'income')
     .reduce((acc, t) => acc + t.amount, 0)
 
+  const totalCosts = products.reduce((acc, p) => acc + ((p.costPrice || 0) * (p.quantity || 0)), 0)
+  const totalStockValue = products.reduce((acc, p) => acc + ((p.price || 0) * (p.quantity || 0)), 0)
+  const potentialProfit = totalStockValue - totalCosts
+
   return (
     <div className="space-y-10 pb-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -31,25 +35,38 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* AI Insights Banner */}
-      <div className="relative overflow-hidden p-8 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl group">
-        <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:opacity-20 transition-opacity">
-          <Sparkles size={120} className="text-primary" />
-        </div>
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
-          <div className="max-w-2xl">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-primary/20 rounded-lg">
-                <Zap size={18} className="text-primary" />
-              </div>
-              <span className="text-xs font-black uppercase tracking-[0.2em] text-primary">AI Business Insights</span>
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Otimização de Faturamento Detectada</h2>
-            <p className="text-slate-400 font-medium">Seu fluxo de caixa cresceu 12% nos últimos 7 dias. Recomendamos focar no projeto "Reestruturação de Vendas" para maximizar o ROI do próximo trimestre.</p>
+      {/* Financial Health Banner */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 relative overflow-hidden p-8 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl group">
+          <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Sparkles size={120} className="text-primary" />
           </div>
-          <button className="shrink-0 px-6 py-3 bg-primary text-white font-black rounded-2xl glow-primary hover:scale-105 transition-all flex items-center gap-2">
-            Ver Detalhes <ArrowUpRight size={18} />
-          </button>
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="p-2 bg-primary/20 rounded-lg">
+                  <Zap size={18} className="text-primary" />
+                </div>
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-primary">AI Business Insights</span>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Saúde do Estoque e Lucratividade</h2>
+              <p className="text-slate-400 font-medium">
+                Seu lucro potencial bruto com o estoque atual é de <span className="text-primary font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(potentialProfit)}</span>. 
+                O valor total investido em produtos é de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCosts)}.
+              </p>
+            </div>
+            <button className="shrink-0 px-6 py-3 bg-primary text-white font-black rounded-2xl glow-primary hover:scale-105 transition-all flex items-center gap-2">
+              Ver Detalhes <ArrowUpRight size={18} />
+            </button>
+          </div>
+        </div>
+        
+        <div className="glass p-8 rounded-3xl border border-primary/20 bg-primary/5 flex flex-col justify-center">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Mark-up Médio Geral</p>
+            <h3 className="text-4xl font-black text-primary tracking-tightest">
+                {totalCosts > 0 ? (((totalStockValue / totalCosts) - 1) * 100).toFixed(1) : 0}%
+            </h3>
+            <p className="text-[10px] font-bold text-slate-500 uppercase mt-2 italic">Margem sobre custo total</p>
         </div>
       </div>
 

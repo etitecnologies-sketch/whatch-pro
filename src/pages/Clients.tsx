@@ -46,6 +46,7 @@ export default function Clients() {
       const newClient: Client = {
         id: crypto.randomUUID(),
         userId: user.id,
+        adminId: user.adminId || user.id, // Multi-tenant link
         ...formData,
         status: 'active',
         createdAt: new Date().toISOString().split('T')[0]

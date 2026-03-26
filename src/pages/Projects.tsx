@@ -46,6 +46,7 @@ export default function Projects() {
       const newProject: Project = {
         id: crypto.randomUUID(),
         userId: user.id,
+        adminId: user.adminId || user.id, // Multi-tenant link
         ...formData
       }
       updatedProjects = [...projects, newProject]

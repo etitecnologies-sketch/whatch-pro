@@ -51,6 +51,7 @@ export default function Employees() {
       const newEmployee: Employee = {
         id: crypto.randomUUID(),
         userId: user.id,
+        adminId: user.adminId || user.id, // Multi-tenant link
         ...formData,
         status: 'active',
         startDate: new Date().toISOString().split('T')[0]

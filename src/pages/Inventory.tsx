@@ -31,13 +31,16 @@ export default function Inventory() {
     costPrice: 0,
     margin: 0,
     taxRate: 0,
-    price: 0
+    price: 0,
+    ncm: '82029000' // NCM padrão
   })
 
   // Calculate final price automatically
   const calculateFinalPrice = (cost: number, margin: number, taxes: number) => {
+    // Cálculo: Custo + (Custo * (Margem/100)) + (Custo * (Impostos/100))
+    // Ou uma fórmula mais comum: Custo * (1 + (Margem + Impostos)/100)
     const totalPercentage = (margin + taxes) / 100
-    return cost * (1 + totalPercentage)
+    return Number((cost * (1 + totalPercentage)).toFixed(2))
   }
 
   const handlePriceChange = (field: string, value: number) => {
@@ -89,6 +92,8 @@ export default function Inventory() {
     
     saveData('products', updatedProducts)
     setIsModalOpen(false)
+    setEditingProduct(null)
+    alert('Produto salvo com sucesso!')
   }
 
   const openModal = (product: Product | null = null) => {
@@ -103,7 +108,8 @@ export default function Inventory() {
         costPrice: product.costPrice || 0,
         margin: product.margin || 0,
         taxRate: product.taxRate || 0,
-        price: product.price
+        price: product.price,
+        ncm: product.ncm || '82029000'
       })
     } else {
       setEditingProduct(null)
@@ -116,7 +122,8 @@ export default function Inventory() {
         costPrice: 0, 
         margin: 0, 
         taxRate: 0, 
-        price: 0 
+        price: 0,
+        ncm: '82029000'
       })
     }
     setIsModalOpen(true)
@@ -418,6 +425,19 @@ export default function Inventory() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">NCM (Fiscal)</label>
+                  <input 
+                    type="text" 
+                    value={formData.ncm}
+                    onChange={e => setFormData({ ...formData, ncm: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                    placeholder="82029000"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Categoria</label>
                   <select 
                     value={formData.category}
@@ -430,8 +450,6 @@ export default function Inventory() {
                     <option value="Serviços">Serviços</option>
                   </select>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Qtd Atual</label>
                   <input 
@@ -441,6 +459,9 @@ export default function Inventory() {
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Estoque Mínimo</label>
                   <input 
