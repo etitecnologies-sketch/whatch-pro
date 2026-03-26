@@ -30,6 +30,17 @@ export default function Quotations() {
   const [isProductSelectOpen, setIsProductSelectOpen] = useState(false)
   const [productSearch, setProductSearch] = useState('')
   const [pdfQuotation, setPdfQuotation] = useState<Quotation | null>(null)
+  const [pdfCompanyLines, setPdfCompanyLines] = useState<{
+    name: string
+    cnpj: string
+    ie: string
+    phone: string
+    email: string
+    addr1: string
+    addr2: string
+    site: string
+    logoUrl: string
+  } | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const pdfRef = useRef<HTMLDivElement>(null)
 
@@ -77,11 +88,15 @@ export default function Quotations() {
   }
 
   const generateQuotationPDF = async (quotation: Quotation) => {
+    setPdfCompanyLines(buildCompanyLines(getCompany()))
     setPdfQuotation(quotation)
     await new Promise(requestAnimationFrame)
     await new Promise(requestAnimationFrame)
 
-    if (!pdfRef.current) return
+    if (!pdfRef.current) {
+      alert('Não foi possível gerar o PDF (componente não carregou). Atualize a página e tente novamente.')
+      return
+    }
 
     try {
       setIsExporting(true)
@@ -100,6 +115,15 @@ export default function Quotations() {
       })
       pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2)
       pdf.save(`Orcamento_${quotation.id}.pdf`)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      alert(
+        'Erro ao gerar o PDF do orçamento.\n\n' +
+        'Dica: se você colocou a logo por URL e ela não permite CORS, o PDF pode falhar.\n' +
+        'Use "Selecionar Logo do PC" nas Configurações ou remova a logo.\n\n' +
+        `Detalhes: ${msg}`
+      )
+      throw err
     } finally {
       setIsExporting(false)
     }
@@ -115,14 +139,13 @@ export default function Quotations() {
     const itemsText = quotation.items.map(i => `- ${i.quantity}x ${i.name}`).join('\n')
     const total = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quotation.totalAmount)
     
-    const message = `Olá, ${client.name}!\n\nVou te enviar o orçamento em PDF (Ref: ${quotation.id}).\n\n*Itens:*\n${itemsText}\n\n*Valor Total:* ${total}\n*Válido até:* ${new Date(quotation.validUntil).toLocaleDateString('pt-BR')}\n\nQualquer dúvida, estamos à disposição!`
+    const message = `Olá, ${client.name}!\n\nSegue orçamento (Ref: ${quotation.id}).\n\n*Itens:*\n${itemsText}\n\n*Valor Total:* ${total}\n*Válido até:* ${new Date(quotation.validUntil).toLocaleDateString('pt-BR')}\n\nVou anexar o PDF em seguida.`
     
     const phone = client.phone.replace(/\D/g, '')
     const whatsappUrl = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`
-    
-    void generateQuotationPDF(quotation).then(() => {
-      window.open(whatsappUrl, '_blank')
-    })
+
+    window.open(whatsappUrl, '_blank')
+    void generateQuotationPDF(quotation)
     handleUpdateStatus(quotation.id, 'sent')
   }
 
@@ -219,7 +242,6 @@ export default function Quotations() {
 
   const selectedClient = clients.find(c => c.id === selectedClientId)
   const filteredProducts = products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
-  const companyLines = useMemo(() => buildCompanyLines(getCompany()), [user])
 
   return (
     <div className="space-y-10 pb-20">
@@ -228,6 +250,7 @@ export default function Quotations() {
           {(() => {
             const quotation = pdfQuotation
             if (!quotation) return null
+            const companyLines = pdfCompanyLines || buildCompanyLines(getCompany())
             const client = clients.find(c => c.id === quotation.clientId)
             return (
               <div className="space-y-8">
