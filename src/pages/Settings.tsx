@@ -266,7 +266,7 @@ export default function Settings() {
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center gap-8 p-6 glass rounded-3xl border border-white/10">
               <div className="relative group">
-                <img src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.name}&background=random`} alt={user?.name} className="w-24 h-24 rounded-3xl shadow-2xl border-2 border-primary/20 group-hover:scale-105 transition-transform duration-500" />
+                <img src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.name}&background=random`} alt={user?.name} className="w-24 h-24 rounded-3xl object-cover shadow-2xl border-2 border-primary/20 group-hover:scale-105 transition-transform duration-500" />
                 <div onClick={() => avatarInputRef.current?.click()} className="absolute inset-0 bg-primary/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
                     <Smartphone size={24} className="text-white" />
                 </div>

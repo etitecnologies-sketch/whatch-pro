@@ -168,9 +168,13 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 overflow-hidden">
               <div className="relative shrink-0 group">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center font-black uppercase text-slate-300 border border-white/10 group-hover:border-primary/50 transition-colors">
-                  {user?.name.charAt(0)}
-                </div>
+                {user?.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="w-11 h-11 rounded-2xl object-cover border border-white/10 group-hover:border-primary/50 transition-colors" />
+                ) : (
+                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center font-black uppercase text-slate-300 border border-white/10 group-hover:border-primary/50 transition-colors">
+                    {user?.name.charAt(0)}
+                  </div>
+                )}
                 <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-4 border-slate-950 shadow-lg glow-primary"></div>
               </div>
               {isSidebarOpen && (
@@ -348,9 +352,13 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
                 <span className="text-[9px] font-bold text-primary uppercase tracking-[0.1em]">{user?.role}</span>
               </div>
               <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-blue-600 p-[2px] shadow-lg shadow-primary/20 group cursor-pointer">
-                <div className="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center text-white font-black text-sm transition-transform group-hover:scale-95">
-                  {user?.name.charAt(0)}
-                </div>
+                {user?.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="w-full h-full rounded-[14px] object-cover transition-transform group-hover:scale-95" />
+                ) : (
+                  <div className="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center text-white font-black text-sm transition-transform group-hover:scale-95">
+                    {user?.name.charAt(0)}
+                  </div>
+                )}
               </div>
             </div>
           </div>
