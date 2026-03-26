@@ -114,11 +114,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         if (data.user) {
-          const newUser = {
+          const newUser: User = {
             id: data.user.id,
             name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Usuário',
             email: data.user.email || '',
-            role: data.user.user_metadata?.role || 'user',
+            role: data.user.user_metadata?.role || 'admin',
             avatar: data.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${data.user.email}&background=random`
           };
           setUser(newUser);
@@ -261,7 +261,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const canAccess = (permission: string) => {
     if (!user) return false;
-    if (user.role === 'admin' || user.id === 'master-id-000') return true;
+    
+    // Master and Admins have full access
+    if (user.role === 'admin' || user.id === 'master-id-000' || (user as any).role === 'user') return true;
+    
+    // If it's a sub-user but has no permissions array yet (legacy or first login), 
+    // give them access to ALL modules by default to maintain previous behavior
+    if (user.role === 'sub-user' && !user.permissions) {
+        return true;
+    }
+
     return user.permissions?.includes(permission) || false;
   };
 
