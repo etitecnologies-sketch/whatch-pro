@@ -105,17 +105,25 @@ export default function Quotations() {
         quality: 1,
         pixelRatio: 2,
         backgroundColor: '#ffffff',
+        width: 794,
+        height: Math.max(1123, pdfRef.current.scrollHeight),
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left',
+        }
       })
-
-      const width = pdfRef.current.offsetWidth
-      const height = pdfRef.current.offsetHeight
 
       const pdf = new jsPDF({
         orientation: 'portrait',
-        unit: 'px',
-        format: [width, height]
+        unit: 'pt',
+        format: 'a4'
       })
-      pdf.addImage(dataUrl, 'PNG', 0, 0, width, height)
+
+      const imgProps = pdf.getImageProperties(dataUrl)
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width
+
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight)
       pdf.save(`Orcamento_${quotation.id}.pdf`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -247,8 +255,8 @@ export default function Quotations() {
 
   return (
     <div className="space-y-10 pb-20">
-      <div className="fixed -left-[99999px] top-0 w-[800px] bg-white text-slate-900" aria-hidden="true">
-        <div ref={pdfRef} className="p-10">
+      <div className="absolute top-0 left-0 w-[794px] min-h-[1123px] bg-white text-slate-900 -z-50 opacity-0 pointer-events-none" aria-hidden="true">
+        <div ref={pdfRef} className="p-10 w-full h-full">
           {(() => {
             const quotation = pdfQuotation
             if (!quotation) return null

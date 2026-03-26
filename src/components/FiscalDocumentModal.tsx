@@ -39,16 +39,17 @@ export default function FiscalDocumentModal({ isOpen, onClose, transaction, docu
         backgroundColor: '#020617', // Match dark theme slate-950
       })
       
-      const width = content.offsetWidth
-      const height = content.offsetHeight
-
       const pdf = new jsPDF({
         orientation: 'portrait',
-        unit: 'px',
-        format: [width, height]
+        unit: 'pt',
+        format: 'a4'
       })
       
-      pdf.addImage(dataUrl, 'PNG', 0, 0, width, height)
+      const imgProps = pdf.getImageProperties(dataUrl)
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width
+
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight)
       pdf.save(`Fiscal_${document.number}_${document.type}.pdf`)
     } catch (error) {
       console.error('Erro ao gerar PDF:', error)
