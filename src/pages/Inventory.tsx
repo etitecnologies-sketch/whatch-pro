@@ -356,20 +356,20 @@ export default function Inventory() {
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Preço de Custo (R$)</label>
                   <input 
                     type="number" 
-                    value={formData.costPrice}
+                    value={formData.costPrice || ''}
                     onChange={e => handlePriceChange('costPrice', parseFloat(e.target.value) || 0)}
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
-                    placeholder="0.00"
+                    placeholder="0"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Margem de Lucro (%)</label>
                   <input 
                     type="number" 
-                    value={formData.margin}
+                    value={formData.margin || ''}
                     onChange={e => handlePriceChange('margin', parseFloat(e.target.value) || 0)}
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
-                    placeholder="20"
+                    placeholder="0"
                   />
                 </div>
               </div>
@@ -379,20 +379,20 @@ export default function Inventory() {
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Impostos (%)</label>
                   <input 
                     type="number" 
-                    value={formData.taxRate}
+                    value={formData.taxRate || ''}
                     onChange={e => handlePriceChange('taxRate', parseFloat(e.target.value) || 0)}
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
-                    placeholder="10"
+                    placeholder="0"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Preço Final de Venda</label>
                   <input 
                     type="number" 
-                    value={formData.price}
+                    value={formData.price || ''}
                     onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                     className="w-full px-4 py-3 bg-primary/5 dark:bg-primary/10 border-2 border-primary/20 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-black text-primary shadow-inner"
-                    placeholder="0.00"
+                    placeholder="0"
                   />
                 </div>
               </div>
