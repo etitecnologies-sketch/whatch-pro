@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit2, Trash2, User as UserIcon, Shield, ShieldCheck, X, Mail, Lock, UserCheck, Check } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, User as UserIcon, Shield, ShieldCheck, X, Mail, Lock, UserCheck, Check, Loader2 } from 'lucide-react'
 import type { User } from '../types'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -10,8 +10,9 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function Users() {
-  const { user: currentUser } = useAuth()
+  const { user: currentUser, createSubUser } = useAuth()
   const [users, setUsers] = useState<User[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
@@ -84,39 +85,55 @@ export default function Users() {
     }))
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!currentUser) return
+    setIsLoading(true)
 
-    let updatedAllUsers: User[]
-    const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
+    try {
+      if (editingUser) {
+        const { password: _password, ...safeFormData } = formData
+        const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
+        const updatedAllUsers = allUsers.map(u => u.id === editingUser.id ? { ...u, ...safeFormData } : u)
+        localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedAllUsers))
+        setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...safeFormData } : u))
+      } else {
+        const createdUser = await createSubUser(
+          formData.name, 
+          formData.email, 
+          formData.password, 
+          formData.role,
+          formData.permissions
+        )
 
-    if (editingUser) {
-      updatedAllUsers = allUsers.map(u => u.id === editingUser.id ? { ...u, ...formData } : u)
-    } else {
-      const newUser: User = {
-        id: crypto.randomUUID(),
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        // If Master creates an Admin, adminId is null (they are their own tenant)
-        // If Admin creates a sub-user, adminId is the current Admin's ID
-        adminId: currentUser.email === 'mestre@whatchpro.com' ? undefined : currentUser.id,
-        permissions: formData.role === 'sub-user' ? formData.permissions : undefined,
-        avatar: `https://ui-avatars.com/api/?name=${formData.name}&background=random`
+        if (createdUser) {
+          const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
+          const newUser: User = {
+            id: createdUser.id,
+            name: formData.name,
+            email: formData.email,
+            role: formData.role,
+            adminId: formData.role === 'sub-user' ? currentUser.id : undefined,
+            permissions: formData.role === 'sub-user' ? formData.permissions : undefined,
+            avatar: `https://ui-avatars.com/api/?name=${formData.name}&background=random`
+          }
+          localStorage.setItem('whatch_pro_all_users', JSON.stringify([...allUsers, newUser]))
+          
+          const filteredByAdmin = [...allUsers, newUser].filter(u => 
+            u.id === currentUser.id || 
+            u.adminId === currentUser.id ||
+            currentUser.email === 'mestre@whatchpro.com'
+          )
+          setUsers(filteredByAdmin)
+          alert(`✅ Usuário criado! Um e-mail de confirmação foi enviado para ${createdUser.email}`)
+        }
       }
-      updatedAllUsers = [...allUsers, newUser]
+      setIsModalOpen(false)
+    } catch (error) {
+      console.error(error)
+      alert('Erro ao salvar usuário: ' + (error as any).message)
+    } finally {
+      setIsLoading(false)
     }
-    
-    localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedAllUsers))
-    
-    // Refresh local list
-    const filteredByAdmin = updatedAllUsers.filter(u => 
-      u.id === currentUser.id || 
-      u.adminId === currentUser.id ||
-      currentUser.email === 'mestre@whatchpro.com'
-    )
-    setUsers(filteredByAdmin)
-    setIsModalOpen(false)
   }
 
   const openModal = (user: User | null = null) => {
@@ -296,6 +313,7 @@ export default function Users() {
                     <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
                     <input 
                         type="password" 
+                        required={!editingUser}
                         value={formData.password}
                         onChange={e => setFormData({ ...formData, password: e.target.value })}
                         className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
@@ -359,9 +377,11 @@ export default function Users() {
               </button>
               <button
                 onClick={handleSave}
-                className="flex-1 px-6 py-3 bg-primary text-white font-black rounded-2xl glow-primary hover:scale-105 transition-all text-sm shadow-lg shadow-primary/20"
+                disabled={isLoading}
+                className="flex-1 px-6 py-3 bg-primary text-white font-black rounded-2xl glow-primary hover:scale-105 transition-all text-sm shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                Salvar Usuário
+                {isLoading && <Loader2 className="animate-spin" size={18} />}
+                {editingUser ? 'Salvar Alterações' : 'Criar Usuário'}
               </button>
             </div>
           </div>

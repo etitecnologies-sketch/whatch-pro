@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import type { User } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -7,7 +8,13 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
-  createSubUser: (name: string, email: string, password: string) => Promise<void>;
+  createSubUser: (
+    name: string,
+    email: string,
+    password: string,
+    role?: 'sub-user' | 'admin',
+    permissions?: string[]
+  ) => Promise<{ id: string; email: string }>;
   isLoading: boolean;
   canAccess: (permission: string) => boolean;
 }
@@ -181,41 +188,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('whatch_pro_user');
   };
 
-  const createSubUser = async (name: string, email: string, password: string) => {
-    if (!user || user.role !== 'admin') throw new Error('Apenas administradores podem criar sub-usuários');
-    
+  const createSubUser = async (
+    name: string,
+    email: string,
+    password: string,
+    role: 'sub-user' | 'admin' = 'sub-user',
+    permissions?: string[]
+  ) => {
+    if (!hasSupabase) {
+      throw new Error('Supabase não configurado. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Vercel.');
+    }
+    if (!user) throw new Error('Autenticação necessária');
+
+    const isMaster = user.email === 'mestre@whatchpro.com';
+    const isAdmin = user.role === 'admin';
+
+    if (role === 'admin' && !isMaster) {
+      throw new Error('Apenas o usuário mestre pode criar administradores.');
+    }
+    if (role === 'sub-user' && !(isMaster || isAdmin)) {
+      throw new Error('Apenas administradores podem criar sub-usuários.');
+    }
+
     setIsLoading(true);
     try {
-      if (hasSupabase) {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { 
-            data: { 
-              name, 
-              role: 'sub-user',
-              adminId: user.id, // Vínculo com o admin atual
-              permissions: ['clients', 'inventory', 'quotations', 'appearance'], // Permissões padrão solicitadas
-              avatar: `https://ui-avatars.com/api/?name=${name}&background=random` 
-            } 
+      const tempSupabase = createClient(supabaseUrl!, supabaseKey!, {
+        auth: { persistSession: false }
+      });
+
+      const { data, error } = await tempSupabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            role,
+            adminId: role === 'sub-user' ? user.id : undefined,
+            permissions: role === 'sub-user'
+              ? (permissions || ['clients', 'inventory', 'quotations', 'appearance'])
+              : undefined,
+            avatar: `https://ui-avatars.com/api/?name=${name}&background=random`
           }
-        });
-        if (error) throw error;
-        console.log('Sub-usuário criado com sucesso:', data.user?.id);
-      } else {
-        // Mock local storage creation
-        const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]');
-        const newUser: User = {
-          id: 'sub_' + Date.now(),
-          name,
-          email,
-          role: 'sub-user',
-          adminId: user.id,
-          permissions: ['clients', 'inventory', 'quotations', 'appearance'],
-          avatar: `https://ui-avatars.com/api/?name=${name}&background=random`
-        };
-        localStorage.setItem('whatch_pro_all_users', JSON.stringify([...allUsers, newUser]));
-      }
+        }
+      });
+
+      if (error) throw error;
+      if (!data.user?.id || !data.user?.email) throw new Error('Erro ao criar usuário no Supabase.');
+
+      return { id: data.user.id, email: data.user.email };
     } finally {
       setIsLoading(false);
     }
