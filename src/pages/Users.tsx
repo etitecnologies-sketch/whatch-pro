@@ -34,7 +34,7 @@ export default function Users() {
     { id: 'crm', label: 'CRM (Vendas)' },
     { id: 'clients', label: 'Clientes' },
     { id: 'inventory', label: 'Estoque / Itens' },
-    { id: 'service-orders', label: 'Ordens de Serviço' },
+    { id: 'service-orders', label: 'Chamados' },
     { id: 'quotations', label: 'Gerar Orçamentos' },
     { id: 'appearance', label: 'Mudar Aparência' },
     { id: 'employees', label: 'Funcionários' },

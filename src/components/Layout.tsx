@@ -89,7 +89,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     { id: 'clients', icon: Building2, label: 'Clientes' },
     { id: 'employees', icon: UsersIcon, label: 'Funcionários' },
     { id: 'inventory', icon: Package, label: 'Estoque' },
-    { id: 'service-orders', icon: Wrench, label: 'Ordens de Serviço' },
+    { id: 'service-orders', icon: Wrench, label: 'Chamados' },
     { id: 'projects', icon: Briefcase, label: 'Projetos' },
     { id: 'quotations', icon: FileTextIcon, label: 'Orçamentos' },
     { id: 'finance', icon: DollarSign, label: 'Financeiro' },

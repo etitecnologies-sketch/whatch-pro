@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Client, Employee, Product, Project, Transaction, FiscalDocument, Quotation, ServiceOrder } from '../types';
+import type { Client, Employee, Product, Project, Transaction, FiscalDocument, Quotation, ServiceOrder, ServiceOrderType } from '../types';
 import { useAuth } from './useAuth';
 import { supabase } from '../lib/supabase';
 import { AsaasService } from '../lib/asaas';
@@ -43,6 +43,7 @@ export function useData() {
   }, [tenantId]);
 
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
+  const [serviceOrderTypes, setServiceOrderTypes] = useState<ServiceOrderType[]>([]);
 
   // Helper to load local data - Uses tenantId for isolation
   const loadLocalData = useCallback((tId: string | null) => {
@@ -55,6 +56,7 @@ export function useData() {
     setFiscalDocuments(JSON.parse(localStorage.getItem(`fiscal_documents_${tId}`) || '[]'));
     setQuotations(JSON.parse(localStorage.getItem(`quotations_${tId}`) || '[]'));
     setServiceOrders(JSON.parse(localStorage.getItem(`service_orders_${tId}`) || '[]'));
+    setServiceOrderTypes(JSON.parse(localStorage.getItem(`service_order_types_${tId}`) || '[]'));
   }, []);
 
   // Helper to save local data - Uses tenantId for isolation
@@ -320,10 +322,12 @@ export function useData() {
         case 'fiscal_documents': setFiscalDocuments(data); break;
         case 'quotations': setQuotations(data); break;
         case 'service_orders': setServiceOrders(data); break;
+        case 'service_order_types': setServiceOrderTypes(data); break;
     }
 
     // 2. Sync with Cloud (Supabase) if available
-    if (hasSupabase && user && user.email !== 'mestre@whatchpro.com') {
+    const syncableTables = ['clients', 'employees', 'products', 'projects', 'transactions', 'fiscal_documents', 'quotations', 'service_orders'];
+    if (hasSupabase && user && user.email !== 'mestre@whatchpro.com' && syncableTables.includes(table)) {
       try {
         // Map frontend camelCase to database snake_case
         const mapToDB = (item: any) => {
@@ -515,6 +519,36 @@ export function useData() {
     });
   }, [saveData]);
 
+  const addServiceOrderType = useCallback((t: Omit<ServiceOrderType, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const next: ServiceOrderType = {
+      ...t,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setServiceOrderTypes(prev => {
+      const updated = [...prev, next];
+      saveData('service_order_types', updated);
+      return updated;
+    });
+  }, [saveData]);
+
+  const updateServiceOrderType = useCallback((id: string, updates: Partial<ServiceOrderType>) => {
+    setServiceOrderTypes(prev => {
+      const updated = prev.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t);
+      saveData('service_order_types', updated);
+      return updated;
+    });
+  }, [saveData]);
+
+  const deleteServiceOrderType = useCallback((id: string) => {
+    setServiceOrderTypes(prev => {
+      const updated = prev.filter(t => t.id !== id);
+      saveData('service_order_types', updated);
+      return updated;
+    });
+  }, [saveData]);
+
   const addTransaction = useCallback((t: Omit<Transaction, 'id' | 'userId' | 'adminId'>) => {
     if (!user || !tenantId) return;
     const newTransaction: Transaction = {
@@ -553,6 +587,11 @@ export function useData() {
     addServiceOrder,
     updateServiceOrder,
     deleteServiceOrder,
+    serviceOrderTypes,
+    setServiceOrderTypes: (data: ServiceOrderType[]) => saveData('service_order_types', data),
+    addServiceOrderType,
+    updateServiceOrderType,
+    deleteServiceOrderType,
     generateAsaasBoleto,
     syncAllClientsWithAsaas
   };

@@ -105,14 +105,26 @@ export interface ServiceOrder {
   userId: string;
   adminId?: string;
   number: string;
+  typeId?: string;
   clientId: string;
   equipment: string;
   problem: string;
   diagnosis?: string;
-  status: 'pending' | 'diagnosing' | 'waiting-approval' | 'approved' | 'in-progress' | 'completed' | 'cancelled';
+  status: string;
   items: QuotationItem[];
   laborCost: number;
   totalAmount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServiceOrderType {
+  id: string;
+  userId: string;
+  adminId?: string;
+  name: string;
+  prefix: string;
+  statuses: string[];
   createdAt: string;
   updatedAt: string;
 }
