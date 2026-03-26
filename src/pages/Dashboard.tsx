@@ -153,7 +153,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       <div className="glass rounded-3xl shadow-xl border border-white/40 dark:border-slate-800/50 overflow-hidden">
         <div className="p-8 border-b border-white/20 dark:border-slate-800/50 flex items-center justify-between">
           <h3 className="text-xl font-black text-slate-900 dark:text-white">Fluxo de Atividades</h3>
-          <button className="text-xs font-bold text-primary hover:underline">Ver tudo</button>
+          <button onClick={() => onNavigate?.('clients')} className="text-xs font-bold text-primary hover:underline">Ver tudo</button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">

@@ -36,6 +36,7 @@ import { useSEFAZ } from '../hooks/useSEFAZ'
 import { supabase } from '../lib/supabase'
 import type { AsaasEnvironment } from '../lib/asaas'
 import type { ConfiguracaoSEFAZ } from '../types'
+import { jsPDF } from 'jspdf'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -46,7 +47,7 @@ type SettingsSection = 'profile' | 'notifications' | 'security' | 'appearance' |
 export default function Settings() {
   const { user, canAccess, updateUserMetadata } = useAuth()
   const { theme, setTheme, accentColor, setAccentColor } = useAppearance()
-  const { syncAllClientsWithAsaas } = useData()
+  const { syncAllClientsWithAsaas, transactions, projects, products, employees, serviceOrders, quotations } = useData()
   const { configuracaoSEFAZ, certificados, salvarConfiguracaoSEFAZ, carregarCertificado, removerCertificado, ativarCertificado } = useSEFAZ()
   const [activeSection, setActiveSection] = useState<SettingsSection>('profile')
   const [isSaved, setIsSaved] = useState(false)
@@ -54,6 +55,8 @@ export default function Settings() {
   const [configuringIntegration, setConfiguringIntegration] = useState<string | null>(null)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement>(null)
+  const [selectedReportPeriod, setSelectedReportPeriod] = useState<'Semanal' | 'Mensal' | 'Anual'>('Mensal')
+  const [isExportingReports, setIsExportingReports] = useState(false)
   
   // SEFAZ State
   const [sefazData, setSefazData] = useState<Partial<ConfiguracaoSEFAZ>>(configuracaoSEFAZ || {
@@ -119,6 +122,224 @@ export default function Settings() {
     const tId = user?.adminId || user?.id;
     return (localStorage.getItem(`whatch_pro_asaas_env_${tId}`) as AsaasEnvironment) || 'production';
   })
+
+  const formatMoney = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+
+  const getPeriodRange = (period: 'Semanal' | 'Mensal' | 'Anual') => {
+    const now = new Date()
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+    let start: Date
+    if (period === 'Semanal') {
+      const s = new Date(end)
+      s.setDate(s.getDate() - 6)
+      start = new Date(s.getFullYear(), s.getMonth(), s.getDate(), 0, 0, 0, 0)
+    } else if (period === 'Anual') {
+      start = new Date(end.getFullYear(), 0, 1, 0, 0, 0, 0)
+    } else {
+      start = new Date(end.getFullYear(), end.getMonth(), 1, 0, 0, 0, 0)
+    }
+    const label = `${start.toLocaleDateString('pt-BR')} – ${end.toLocaleDateString('pt-BR')}`
+    return { start, end, label }
+  }
+
+  const withinRange = (isoDate: string, start: Date, end: Date) => {
+    const d = new Date(isoDate)
+    return d.getTime() >= start.getTime() && d.getTime() <= end.getTime()
+  }
+
+  const generateTextPdf = (title: string, periodLabel: string, sections: { title: string; lines: string[] }[]) => {
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const margin = 48
+    let y = 56
+
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(18)
+    pdf.text(title, margin, y)
+    y += 20
+
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(10)
+    pdf.text(`Período: ${periodLabel}`, margin, y)
+    y += 26
+
+    const addLine = (text: string) => {
+      const maxWidth = pageWidth - margin * 2
+      const lines = pdf.splitTextToSize(text, maxWidth)
+      for (const line of lines) {
+        if (y > 780) {
+          pdf.addPage()
+          y = 56
+        }
+        pdf.text(line, margin, y)
+        y += 14
+      }
+    }
+
+    for (const section of sections) {
+      pdf.setFont('helvetica', 'bold')
+      pdf.setFontSize(12)
+      addLine(section.title)
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(10)
+      for (const l of section.lines) addLine(`• ${l}`)
+      y += 10
+    }
+
+    const safeTitle = title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_')
+    const stamp = new Date().toISOString().slice(0, 10)
+    pdf.save(`${safeTitle}_${stamp}.pdf`)
+  }
+
+  const handleGenerateReportPdf = async (type: 'finance' | 'projects' | 'inventory' | 'users') => {
+    if (isExportingReports) return
+    setIsExportingReports(true)
+    try {
+      const { start, end, label } = getPeriodRange(selectedReportPeriod)
+
+      const txInRange = transactions.filter(t => withinRange(t.date, start, end))
+      const income = txInRange.filter(t => t.type === 'income')
+      const expense = txInRange.filter(t => t.type === 'expense')
+      const incomeTotal = income.reduce((acc, t) => acc + t.amount, 0)
+      const expenseTotal = expense.reduce((acc, t) => acc + t.amount, 0)
+      const pending = txInRange.filter(t => t.status === 'pending')
+
+      const projectsCounts = projects.reduce((acc, p) => {
+        acc[p.status] = (acc[p.status] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
+
+      const lowStock = products.filter(p => p.quantity <= (p.minQuantity || 0))
+      const outStock = products.filter(p => p.quantity <= 0)
+
+      const soInRange = serviceOrders.filter(s => withinRange(s.createdAt, start, end))
+      const quotationsInRange = quotations.filter(q => withinRange(q.createdAt, start, end))
+
+      if (type === 'finance') {
+        generateTextPdf('Relatório: Fluxo de Caixa', label, [
+          {
+            title: 'Resumo',
+            lines: [
+              `Receitas: ${formatMoney(incomeTotal)} (${income.length})`,
+              `Despesas: ${formatMoney(expenseTotal)} (${expense.length})`,
+              `Saldo: ${formatMoney(incomeTotal - expenseTotal)}`,
+              `Pendências: ${pending.length}`
+            ]
+          }
+        ])
+        return
+      }
+
+      if (type === 'projects') {
+        generateTextPdf('Relatório: Desempenho de Projetos', label, [
+          {
+            title: 'Projetos',
+            lines: [
+              `Total: ${projects.length}`,
+              ...Object.entries(projectsCounts).map(([k, v]) => `${k}: ${v}`)
+            ]
+          }
+        ])
+        return
+      }
+
+      if (type === 'inventory') {
+        generateTextPdf('Relatório: Inventário de Estoque', label, [
+          {
+            title: 'Estoque',
+            lines: [
+              `Produtos cadastrados: ${products.length}`,
+              `Estoque crítico: ${lowStock.length}`,
+              `Sem estoque: ${outStock.length}`
+            ]
+          },
+          {
+            title: 'Movimentações do Período',
+            lines: [
+              `Chamados criados: ${soInRange.length}`,
+              `Orçamentos criados: ${quotationsInRange.length}`
+            ]
+          }
+        ])
+        return
+      }
+
+      generateTextPdf('Relatório: Atividades de Usuários', label, [
+        {
+          title: 'Usuários',
+          lines: [
+            `Funcionários cadastrados: ${employees.length}`,
+            `Chamados criados: ${soInRange.length}`,
+            `Orçamentos criados: ${quotationsInRange.length}`
+          ]
+        }
+      ])
+    } finally {
+      setIsExportingReports(false)
+    }
+  }
+
+  const handleGenerateConsolidatedPdf = async () => {
+    if (isExportingReports) return
+    setIsExportingReports(true)
+    try {
+      const { start, end, label } = getPeriodRange(selectedReportPeriod)
+
+      const txInRange = transactions.filter(t => withinRange(t.date, start, end))
+      const incomeTotal = txInRange.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0)
+      const expenseTotal = txInRange.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0)
+      const pending = txInRange.filter(t => t.status === 'pending').length
+
+      const lowStock = products.filter(p => p.quantity <= (p.minQuantity || 0)).length
+      const outStock = products.filter(p => p.quantity <= 0).length
+
+      const projectsCounts = projects.reduce((acc, p) => {
+        acc[p.status] = (acc[p.status] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
+
+      const soInRange = serviceOrders.filter(s => withinRange(s.createdAt, start, end))
+      const quotationsInRange = quotations.filter(q => withinRange(q.createdAt, start, end))
+
+      generateTextPdf('Relatório Consolidado', label, [
+        {
+          title: 'Financeiro',
+          lines: [
+            `Receitas: ${formatMoney(incomeTotal)}`,
+            `Despesas: ${formatMoney(expenseTotal)}`,
+            `Saldo: ${formatMoney(incomeTotal - expenseTotal)}`,
+            `Pendências: ${pending}`
+          ]
+        },
+        {
+          title: 'Projetos',
+          lines: [
+            `Total: ${projects.length}`,
+            ...Object.entries(projectsCounts).map(([k, v]) => `${k}: ${v}`)
+          ]
+        },
+        {
+          title: 'Estoque',
+          lines: [
+            `Produtos cadastrados: ${products.length}`,
+            `Estoque crítico: ${lowStock}`,
+            `Sem estoque: ${outStock}`
+          ]
+        },
+        {
+          title: 'Operação',
+          lines: [
+            `Chamados criados: ${soInRange.length}`,
+            `Orçamentos criados: ${quotationsInRange.length}`,
+            `Funcionários cadastrados: ${employees.length}`
+          ]
+        }
+      ])
+    } finally {
+      setIsExportingReports(false)
+    }
+  }
   const [asaasProxyEnabled, setAsaasProxyEnabled] = useState(() => {
     const tId = user?.adminId || user?.id;
     return localStorage.getItem(`whatch_pro_asaas_proxy_enabled_${tId}`) === 'true';
@@ -469,7 +690,12 @@ export default function Settings() {
                 {(['Semanal', 'Mensal', 'Anual'] as const).map((period) => (
                   <button
                     key={period}
-                    className="px-8 py-4 glass rounded-2xl border border-white/10 text-[10px] font-black uppercase tracking-widest hover:border-primary/50 hover:bg-primary/5 transition-all text-slate-500 hover:text-primary active:scale-95"
+                    onClick={() => setSelectedReportPeriod(period)}
+                    className={cn(
+                      "px-8 py-4 glass rounded-2xl border border-white/10 text-[10px] font-black uppercase tracking-widest hover:border-primary/50 hover:bg-primary/5 transition-all active:scale-95",
+                      selectedReportPeriod === period ? "border-primary/50 bg-primary/10 text-primary" : "text-slate-500 hover:text-primary"
+                    )}
+                    aria-pressed={selectedReportPeriod === period}
                   >
                     {period}
                   </button>
@@ -478,10 +704,10 @@ export default function Settings() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ReportCard title="Fluxo de Caixa" description="Análise completa de receitas e despesas." type="finance" />
-              <ReportCard title="Desempenho de Projetos" description="Status detalhado de horas e custos." type="projects" />
-              <ReportCard title="Inventário de Estoque" description="Relatório de ativos e reposição." type="inventory" />
-              <ReportCard title="Atividades de Usuários" description="Log de acessos e modificações." type="users" />
+              <ReportCard title="Fluxo de Caixa" description="Análise completa de receitas e despesas." type="finance" period={selectedReportPeriod} onGenerate={() => handleGenerateReportPdf('finance')} />
+              <ReportCard title="Desempenho de Projetos" description="Status detalhado de horas e custos." type="projects" period={selectedReportPeriod} onGenerate={() => handleGenerateReportPdf('projects')} />
+              <ReportCard title="Inventário de Estoque" description="Relatório de ativos e reposição." type="inventory" period={selectedReportPeriod} onGenerate={() => handleGenerateReportPdf('inventory')} />
+              <ReportCard title="Atividades de Usuários" description="Log de acessos e modificações." type="users" period={selectedReportPeriod} onGenerate={() => handleGenerateReportPdf('users')} />
             </div>
 
             <div className="p-8 rounded-[32px] bg-primary/5 border border-primary/10 relative overflow-hidden group">
@@ -496,7 +722,11 @@ export default function Settings() {
                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter italic">Gera um PDF consolidado com todos os dados do período selecionado.</p>
                         </div>
                     </div>
-                    <button className="w-full md:w-auto px-8 py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest glow-primary hover:scale-105 transition-all">
+                    <button
+                      onClick={handleGenerateConsolidatedPdf}
+                      disabled={isExportingReports}
+                      className="w-full md:w-auto px-8 py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest glow-primary hover:scale-105 transition-all disabled:opacity-60 disabled:hover:scale-100"
+                    >
                         Gerar PDF Consolidado
                     </button>
                 </div>
@@ -1375,17 +1605,22 @@ function NotificationToggle({ label, description }: { label: string, description
   );
 }
 
-function ReportCard({ title, description, type }: { title: string, description: string, type: string }) {
-  const [isGenerating, setIsGenerating] = useState(false);
+function ReportCard({ title, description, type, period, onGenerate }: { title: string, description: string, type: string, period: string, onGenerate: () => void | Promise<void> }) {
+  const [isGenerating, setIsGenerating] = useState(false)
 
-  const handleGenerate = () => {
-    setIsGenerating(true);
-    // Simulation of report generation
-    setTimeout(() => {
-      setIsGenerating(false);
-      alert(`Relatório de ${title} gerado com sucesso para o período selecionado!`);
-    }, 2000);
-  };
+  const handleGenerate = async () => {
+    if (isGenerating) return
+    setIsGenerating(true)
+    try {
+      await onGenerate()
+      alert(`Relatório de ${title} gerado com sucesso (${period}).`)
+    } catch (err) {
+      alert('Não foi possível gerar o relatório. Verifique sua conexão e tente novamente.')
+      throw err
+    } finally {
+      setIsGenerating(false)
+    }
+  }
 
   return (
     <div 
@@ -1397,7 +1632,14 @@ function ReportCard({ title, description, type }: { title: string, description: 
         <div className="p-3 bg-primary/10 text-primary rounded-2xl group-hover:scale-110 transition-transform">
           {isGenerating ? <Loader2 size={24} className="animate-spin" /> : <FileText size={24} />}
         </div>
-        <button className="p-2 text-slate-500 hover:text-primary transition-colors">
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            void handleGenerate()
+          }}
+          className="p-2 text-slate-500 hover:text-primary transition-colors"
+          aria-label={`Baixar relatório: ${title}`}
+        >
           <Download size={20} />
         </button>
       </div>
@@ -1456,7 +1698,7 @@ function IntegrationItem({ label, status, onConfigure }: { label: string, status
 
 function ChangelogItem({ version, date, changes }: { version: string, date: string, changes: string[] }) {
   return (
-    <div className="p-6 rounded-3xl bg-white/5 border border-white/5 hover:border-primary/10 transition-all group">
+    <div className="p-6 rounded-3xl bg-white/5 border border-white/5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
             <span className="px-3 py-1 bg-primary text-white text-[10px] font-black rounded-lg shadow-lg shadow-primary/20">{version}</span>

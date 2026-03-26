@@ -47,11 +47,13 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [showSyncToast, setShowSyncToast] = useState(false)
   const { user, logout, canAccess } = useAuth()
   const { isSyncing, lastSync, syncFromCloud, products, transactions } = useData()
   const [currentTime, setCurrentTime] = useState(new Date())
   const notificationRef = useRef<HTMLDivElement>(null)
+  const userMenuRef = useRef<HTMLDivElement>(null)
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const isOnline = !!supabaseUrl && !supabaseUrl.includes('SUA_URL');
@@ -71,6 +73,9 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     const handleClickOutside = (event: MouseEvent) => {
       if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
         setIsNotificationsOpen(false)
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -308,7 +313,14 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
                         ) : (
                             <>
                                 {stockAlerts.map(product => (
-                                    <div key={product.id} className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-4 hover:bg-amber-500/20 transition-colors cursor-pointer">
+                                    <div
+                                      key={product.id}
+                                      onClick={() => {
+                                        setActiveTab('inventory')
+                                        setIsNotificationsOpen(false)
+                                      }}
+                                      className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-4 hover:bg-amber-500/20 transition-colors cursor-pointer"
+                                    >
                                         <div className="p-2 bg-amber-500/20 rounded-xl text-amber-500">
                                             <AlertTriangle size={18} />
                                         </div>
@@ -319,7 +331,14 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
                                     </div>
                                 ))}
                                 {pendingTransactions.map(transaction => (
-                                    <div key={transaction.id} className="p-4 bg-primary/10 border border-primary/20 rounded-2xl flex items-start gap-4 hover:bg-primary/20 transition-colors cursor-pointer">
+                                    <div
+                                      key={transaction.id}
+                                      onClick={() => {
+                                        setActiveTab('finance')
+                                        setIsNotificationsOpen(false)
+                                      }}
+                                      className="p-4 bg-primary/10 border border-primary/20 rounded-2xl flex items-start gap-4 hover:bg-primary/20 transition-colors cursor-pointer"
+                                    >
                                         <div className="p-2 bg-primary/20 rounded-xl text-primary">
                                             <DollarSign size={18} />
                                         </div>
@@ -346,12 +365,17 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
 
             <div className="h-10 w-[1px] bg-slate-200 dark:bg-slate-800/50 mx-1"></div>
 
-            <div className="flex items-center gap-3 pl-1">
+            <div ref={userMenuRef} className="relative flex items-center gap-3 pl-1">
               <div className="hidden lg:flex flex-col items-end">
                 <span className="text-xs font-black tracking-tight leading-none mb-0.5">{user?.name.split(' ')[0]}</span>
                 <span className="text-[9px] font-bold text-primary uppercase tracking-[0.1em]">{user?.role}</span>
               </div>
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-blue-600 p-[2px] shadow-lg shadow-primary/20 group cursor-pointer">
+              <button
+                type="button"
+                onClick={() => setIsUserMenuOpen(v => !v)}
+                className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-blue-600 p-[2px] shadow-lg shadow-primary/20 group"
+                aria-label="Menu do usuário"
+              >
                 {user?.avatar ? (
                   <img src={user.avatar} alt={user.name} className="w-full h-full rounded-[14px] object-cover transition-transform group-hover:scale-95" />
                 ) : (
@@ -359,7 +383,44 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
                     {user?.name.charAt(0)}
                   </div>
                 )}
-              </div>
+              </button>
+              {isUserMenuOpen && (
+                <div className="absolute right-0 top-full mt-3 w-64 glass rounded-3xl border border-white/10 shadow-2xl overflow-hidden z-50">
+                  <div className="p-5 border-b border-white/10">
+                    <p className="text-xs font-black text-white tracking-tight">{user?.name}</p>
+                    <p className="text-[10px] font-bold text-slate-500">{user?.email}</p>
+                  </div>
+                  <div className="p-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('settings')
+                        setIsUserMenuOpen(false)
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-2xl text-left hover:bg-white/5 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <SettingsIcon size={16} className="text-primary" />
+                        <span className="text-xs font-black text-white uppercase tracking-widest">Configurações</span>
+                      </div>
+                      <ChevronRight size={16} className="text-slate-500" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void logout()
+                        setIsUserMenuOpen(false)
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-2xl text-left hover:bg-white/5 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <LogOut size={16} className="text-red-500" />
+                        <span className="text-xs font-black text-white uppercase tracking-widest">Sair</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>

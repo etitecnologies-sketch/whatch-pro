@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Mail, Lock, User as UserIcon, Loader2, Zap, ShieldCheck } from 'lucide-react';
 import Logo from '../components/Logo';
+import { supabase } from '../lib/supabase';
 
 export default function Login() {
   const { login, register } = useAuth();
@@ -10,6 +11,14 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const hasSupabase =
+    !!supabaseUrl &&
+    !!supabaseKey &&
+    !String(supabaseUrl).includes('SUA_URL') &&
+    !String(supabaseUrl).includes('YOUR_URL')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +36,28 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      alert('Digite seu e-mail no campo acima para recuperar a senha.')
+      return
+    }
+    if (!hasSupabase) {
+      alert('Recuperação de senha indisponível. Configure o Supabase (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY).')
+      return
+    }
+    try {
+      setLoading(true)
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })
+      if (error) throw error
+      alert('Enviamos um link de recuperação para seu e-mail. Verifique a caixa de entrada e o spam.')
+    } catch (err) {
+      console.error(err)
+      alert('Não foi possível enviar o e-mail de recuperação. Verifique o e-mail e tente novamente.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 relative overflow-hidden">
@@ -131,7 +162,7 @@ export default function Login() {
                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/80">Criptografia Militar AES-256</span>
             </div>
             <div className="flex flex-col items-center gap-2">
-                <button className="text-[9px] font-black text-slate-600 uppercase tracking-widest hover:text-slate-400 transition-colors">
+                <button onClick={() => void handleForgotPassword()} className="text-[9px] font-black text-slate-600 uppercase tracking-widest hover:text-slate-400 transition-colors">
                   Esqueci minha senha
                 </button>
             </div>
