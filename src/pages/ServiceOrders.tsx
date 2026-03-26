@@ -570,6 +570,7 @@ export default function ServiceOrders() {
           </table>
         </div>
       </div>
+      )}
 
       {/* Modal Nova/Editar OS */}
       {isModalOpen && (
@@ -785,8 +786,6 @@ export default function ServiceOrders() {
             </div>
           </div>
         </div>
-      )}
-
       )}
 
       {activeView === 'flows' && (
