@@ -340,7 +340,7 @@ export default function Inventory() {
               </button>
             </div>
             
-            <div className="p-8 space-y-6">
+            <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Nome do Item</label>
                 <input 
@@ -533,7 +533,7 @@ export default function Inventory() {
               </button>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Selecionar Cliente</label>
                 <select 

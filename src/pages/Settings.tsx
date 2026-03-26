@@ -530,7 +530,7 @@ export default function Settings() {
                     </div>
                   </div>
 
-                  <div className="space-y-6">
+                  <div className="space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
                     {configuringIntegration === 'Asaas Gateway' && (
                       <div className="space-y-6">
                         <div className="p-4 rounded-[32px] bg-primary/5 border border-primary/10 mb-2">

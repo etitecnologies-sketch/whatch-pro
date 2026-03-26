@@ -501,7 +501,7 @@ export default function Finance() {
               </button>
             </div>
             
-            <div className="p-8 space-y-6">
+            <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => setFormData({ ...formData, type: 'income' })}
