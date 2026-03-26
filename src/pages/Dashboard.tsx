@@ -8,7 +8,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function Dashboard() {
-  const { clients, employees, projects, transactions } = useData()
+  const { clients, employees, projects, transactions, products } = useData()
 
   const totalRevenue = transactions
     .filter(t => t.type === 'income')

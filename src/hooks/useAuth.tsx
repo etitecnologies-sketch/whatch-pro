@@ -27,17 +27,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Check if master user is already logged in via localStorage
-        const savedUser = localStorage.getItem('whatch_pro_user');
-        if (savedUser) {
-          const parsedUser = JSON.parse(savedUser);
-          if (parsedUser.email === 'mestre@whatchpro.com') {
-            setUser(parsedUser);
-            setIsLoading(false);
-            return;
-          }
-        }
-
         if (hasSupabase) {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
@@ -53,13 +42,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            // Don't overwrite if it's the master user
-            const currentSaved = localStorage.getItem('whatch_pro_user');
-            if (currentSaved) {
-              const parsed = JSON.parse(currentSaved);
-              if (parsed.email === 'mestre@whatchpro.com') return;
-            }
-
             if (session?.user) {
               setUser({
                 id: session.user.id,
@@ -96,20 +78,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // 1. MASTER USER CHECK (HARDCODED)
-      if (email === 'mestre@whatchpro.com' && password === 'mestre2026') {
-        const masterUser: User = {
-          id: 'master-id-000',
-          name: 'Mestre Whatch Pro',
-          email: 'mestre@whatchpro.com',
-          role: 'admin',
-          avatar: `https://ui-avatars.com/api/?name=Mestre+Whatch+Pro&background=random`
-        };
-        setUser(masterUser);
-        localStorage.setItem('whatch_pro_user', JSON.stringify(masterUser));
-        return;
-      }
-
       if (hasSupabase) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -129,34 +97,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await new Promise(resolve => setTimeout(resolve, 800));
         const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]');
         
-        if (allUsers.length === 0 && email === 'admin@whatchpro.com' && password === 'admin123') {
-          const adminUser: User = {
-            id: 'user_admin',
-            name: 'Super Admin',
-            email: 'admin@whatchpro.com',
-            role: 'admin',
-            avatar: `https://ui-avatars.com/api/?name=Super+Admin&background=random`
-          };
-          setUser(adminUser);
-          localStorage.setItem('whatch_pro_user', JSON.stringify(adminUser));
-          localStorage.setItem('whatch_pro_all_users', JSON.stringify([adminUser]));
+        const foundUser = allUsers.find(u => u.email === email);
+        if (foundUser) {
+           setUser(foundUser);
+           localStorage.setItem('whatch_pro_user', JSON.stringify(foundUser));
         } else {
-          const foundUser = allUsers.find(u => u.email === email);
-          if (foundUser) {
-             setUser(foundUser);
-             localStorage.setItem('whatch_pro_user', JSON.stringify(foundUser));
-          } else {
-            // Default fallback
-            const fallbackUser: User = {
-              id: 'temp-id',
-              name: 'Usuário Teste',
-              email: email,
-              role: 'sub-user',
-              avatar: `https://ui-avatars.com/api/?name=${email}`
-            };
-            setUser(fallbackUser);
-            localStorage.setItem('whatch_pro_user', JSON.stringify(fallbackUser));
-          }
+          // Default fallback
+          const fallbackUser: User = {
+            id: 'temp-id',
+            name: 'Usuário Teste',
+            email: email,
+            role: 'sub-user',
+            avatar: `https://ui-avatars.com/api/?name=${email}`
+          };
+          setUser(fallbackUser);
+          localStorage.setItem('whatch_pro_user', JSON.stringify(fallbackUser));
         }
       }
     } finally {
@@ -263,7 +218,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return false;
     
     // Master has full access to everything
-    if (user.id === 'master-id-000') return true;
+    // Identify by special email (must be authenticated via Supabase/Mock)
+    if (user.email === 'mestre@whatchpro.com') return true;
     
     // Admins have full access by default
     if (user.role === 'admin') return true;

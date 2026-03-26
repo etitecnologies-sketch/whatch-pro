@@ -2,6 +2,7 @@
 create table if not exists public.user_integrations (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade unique,
+  admin_id uuid, -- Referência ao admin dono do ambiente
   -- Asaas
   asaas_token text,
   asaas_env text default 'production',

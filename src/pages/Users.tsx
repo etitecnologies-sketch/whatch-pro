@@ -41,8 +41,8 @@ export default function Users() {
     // Strict isolation filtering:
     const filteredByAdmin = allUsers.filter(u => {
       // 1. Master sees all Admins (to manage them)
-      if (currentUser?.id === 'master-id-000') {
-          return u.role === 'admin' || u.id === 'master-id-000';
+      if (currentUser?.email === 'mestre@whatchpro.com') {
+          return u.role === 'admin' || u.email === 'mestre@whatchpro.com';
       }
       
       // 2. Admin sees themselves and their own sub-users
@@ -100,7 +100,7 @@ export default function Users() {
         role: formData.role,
         // If Master creates an Admin, adminId is null (they are their own tenant)
         // If Admin creates a sub-user, adminId is the current Admin's ID
-        adminId: currentUser.id === 'master-id-000' ? undefined : currentUser.id,
+        adminId: currentUser.email === 'mestre@whatchpro.com' ? undefined : currentUser.id,
         permissions: formData.role === 'sub-user' ? formData.permissions : undefined,
         avatar: `https://ui-avatars.com/api/?name=${formData.name}&background=random`
       }
@@ -113,7 +113,7 @@ export default function Users() {
     const filteredByAdmin = updatedAllUsers.filter(u => 
       u.id === currentUser.id || 
       u.adminId === currentUser.id ||
-      currentUser.id === 'master-id-000'
+      currentUser.email === 'mestre@whatchpro.com'
     )
     setUsers(filteredByAdmin)
     setIsModalOpen(false)
@@ -313,7 +313,7 @@ export default function Users() {
                         className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner appearance-none"
                     >
                         <option value="sub-user">Sub-usuário (Limitado)</option>
-                        {currentUser?.id === 'master-id-000' && (
+                        {currentUser?.email === 'mestre@whatchpro.com' && (
                             <option value="admin">Administrador (Master)</option>
                         )}
                     </select>

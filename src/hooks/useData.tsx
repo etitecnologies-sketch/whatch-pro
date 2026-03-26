@@ -16,9 +16,9 @@ export function useData() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('whatch_pro_last_sync'));
-  const [asaasToken] = useState(() => localStorage.getItem('whatch_pro_asaas_token') || '');
-  const [asaasEnv] = useState(() => (localStorage.getItem('whatch_pro_asaas_env') as any) || 'production');
-  const [asaasProxyEnabled] = useState(() => localStorage.getItem('whatch_pro_asaas_proxy_enabled') === 'true');
+  const [asaasToken, setAsaasToken] = useState('');
+  const [asaasEnv, setAsaasEnv] = useState<'production' | 'sandbox'>('production');
+  const [asaasProxyEnabled, setAsaasProxyEnabled] = useState(false);
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const hasSupabase = !!supabaseUrl && !supabaseUrl.includes('SUA_URL') && !supabaseUrl.includes('YOUR_URL');
@@ -32,6 +32,15 @@ export function useData() {
   }, [user]);
 
   const tenantId = getTenantId();
+
+  // Load Asaas config when tenantId changes
+  useEffect(() => {
+    if (tenantId) {
+      setAsaasToken(localStorage.getItem(`whatch_pro_asaas_token_${tenantId}`) || '');
+      setAsaasEnv((localStorage.getItem(`whatch_pro_asaas_env_${tenantId}`) as any) || 'production');
+      setAsaasProxyEnabled(localStorage.getItem(`whatch_pro_asaas_proxy_enabled_${tenantId}`) === 'true');
+    }
+  }, [tenantId]);
 
   // Helper to load local data - Uses tenantId for isolation
   const loadLocalData = useCallback((tId: string | null) => {

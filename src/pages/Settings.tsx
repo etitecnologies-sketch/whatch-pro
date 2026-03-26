@@ -85,6 +85,7 @@ export default function Settings() {
     const tId = user?.adminId || user?.id;
     return localStorage.getItem(`whatch_pro_asaas_token_${tId}`) || '';
   })
+  const [tempAsaasToken, setTempAsaasToken] = useState(asaasToken)
   const [asaasEnv, setAsaasEnv] = useState<AsaasEnvironment>(() => {
     const tId = user?.adminId || user?.id;
     return (localStorage.getItem(`whatch_pro_asaas_env_${tId}`) as AsaasEnvironment) || 'production';
@@ -99,6 +100,7 @@ export default function Settings() {
     const tId = user?.adminId || user?.id;
     return localStorage.getItem(`whatch_pro_nuvemfiscal_token_${tId}`) || '';
   })
+  const [tempNuvemfiscalToken, setTempNuvemfiscalToken] = useState(nuvemfiscalToken)
   const [nuvemfiscalEnv, setNuvemfiscalEnv] = useState<'sandbox' | 'producao'>(() => {
     const tId = user?.adminId || user?.id;
     return (localStorage.getItem(`whatch_pro_nuvemfiscal_env_${tId}`) as any) || 'sandbox';
@@ -520,8 +522,8 @@ export default function Settings() {
                             </div>
                             <input 
                               type={showToken ? "text" : "password"}
-                              defaultValue={asaasToken}
-                              id="integration-token"
+                              value={tempAsaasToken}
+                              onChange={(e) => setTempAsaasToken(e.target.value)}
                               className="w-full px-6 py-4 bg-slate-900/40 border border-white/5 rounded-2xl focus:ring-4 focus:ring-primary/10 focus:border-primary/40 outline-none transition-all text-sm font-bold text-white shadow-inner"
                             />
                           </div>
@@ -622,8 +624,8 @@ export default function Settings() {
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">NuvemFiscal API Key</label>
                             <input 
                               type="password"
-                              defaultValue={nuvemfiscalToken}
-                              id="nuvemfiscal-token"
+                              value={tempNuvemfiscalToken}
+                              onChange={(e) => setTempNuvemfiscalToken(e.target.value)}
                               className="w-full px-6 py-4 bg-slate-900/40 border border-white/5 rounded-2xl outline-none text-sm font-bold text-white shadow-inner"
                             />
                           </div>
@@ -684,11 +686,9 @@ export default function Settings() {
                       <button 
                         onClick={() => {
                           if (configuringIntegration === 'Asaas Gateway') {
-                            const token = (document.getElementById('integration-token') as HTMLInputElement)?.value
-                            handleSaveAsaasConfig(token || asaasToken, asaasEnv, asaasProxyEnabled)
+                            handleSaveAsaasConfig(tempAsaasToken, asaasEnv, asaasProxyEnabled)
                           } else if (configuringIntegration === 'NuvemFiscal NF-e') {
-                            const token = (document.getElementById('nuvemfiscal-token') as HTMLInputElement)?.value
-                            handleSaveNuvemFiscalConfig(token || nuvemfiscalToken, nuvemfiscalEnv, nuvemfiscalProxyEnabled)
+                            handleSaveNuvemFiscalConfig(tempNuvemfiscalToken, nuvemfiscalEnv, nuvemfiscalProxyEnabled)
                           } else {
                             setIntegrationStates(prev => ({ ...prev, [configuringIntegration]: 'Conectado' }))
                             setConfiguringIntegration(null)

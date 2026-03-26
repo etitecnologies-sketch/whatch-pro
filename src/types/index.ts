@@ -127,6 +127,7 @@ export interface FiscalDocument {
 export interface CertificadoDigital {
   id: string;
   userId: string;
+  adminId?: string; // Tenant ID
   nomeArquivo: string;
   base64Data: string; // Arquivo .pfx em Base64
   senha: string; // Criptografada
@@ -144,6 +145,7 @@ export interface CertificadoDigital {
 export interface ConfiguracaoSEFAZ {
   id: string;
   userId: string;
+  adminId?: string; // Tenant ID
   cnpj: string;
   razaoSocial: string;
   nomeFantasia: string;
