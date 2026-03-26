@@ -1,4 +1,4 @@
-import { Building2, Users, Briefcase, DollarSign, TrendingUp, ArrowUpRight, ArrowDownRight, Zap, Sparkles, Plus, FileText, LayoutPanelTop, Activity } from 'lucide-react'
+import { Building2, Users, Briefcase, DollarSign, TrendingUp, ArrowUpRight, ArrowDownRight, Zap, Sparkles, Plus, FileText, LayoutPanelTop, Activity, RefreshCw } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useData } from '../hooks/useData'
