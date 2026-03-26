@@ -103,6 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Usuário',
             email: data.user.email || '',
             role: data.user.user_metadata?.role || 'admin',
+            adminId: data.user.user_metadata?.adminId,
+            permissions: Array.isArray(data.user.user_metadata?.permissions) ? data.user.user_metadata.permissions : undefined,
             avatar: data.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${data.user.email}&background=random`
           };
           setUser(newUser);
