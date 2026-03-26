@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, Search, User } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, Search, User, CheckCircle2 } from 'lucide-react'
 import { useData } from '../hooks/useData'
 import { Product } from '../types'
 
