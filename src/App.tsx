@@ -38,7 +38,7 @@ function AppContent() {
 
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard />
+        return <Dashboard onNavigate={setActiveTab} />
       case 'clients':
         return <Clients />
       case 'employees':

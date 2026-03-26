@@ -4,16 +4,18 @@ import { twMerge } from 'tailwind-merge'
 import { useData } from '../hooks/useData'
 
 import { useAuth } from '../hooks/useAuth'
-import { useNavigate } from 'react-router-dom'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export default function Dashboard() {
+interface DashboardProps {
+  onNavigate?: (tab: string) => void
+}
+
+export default function Dashboard({ onNavigate }: DashboardProps) {
   const { clients, employees, projects, transactions, products } = useData()
   const { user } = useAuth()
-  const navigate = useNavigate()
 
   const totalRevenue = transactions
     .filter(t => t.type === 'income')
@@ -62,7 +64,10 @@ export default function Dashboard() {
                 O valor total investido em produtos é de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalCosts)}.
               </p>
             </div>
-            <button className="shrink-0 px-6 py-3 bg-primary text-white font-black rounded-2xl glow-primary hover:scale-105 transition-all flex items-center gap-2">
+            <button 
+              onClick={() => onNavigate?.('inventory')}
+              className="shrink-0 px-6 py-3 bg-primary text-white font-black rounded-2xl glow-primary hover:scale-105 transition-all flex items-center gap-2"
+            >
               Ver Detalhes <ArrowUpRight size={18} />
             </button>
           </div>
@@ -120,12 +125,12 @@ export default function Dashboard() {
           <div className="glass rounded-3xl p-8 shadow-xl border border-white/40 dark:border-slate-800/50">
             <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6">Ações Inteligentes</h3>
             <div className="grid grid-cols-1 gap-4">
-              <QuickActionItem icon={Plus} label="Cadastrar Cliente" desc="Novo registro no banco" color="blue" onClick={() => navigate('/clients')} />
-              <QuickActionItem icon={FileText} label="Gerar Relatório" desc="PDF Mensal de vendas" color="purple" onClick={() => navigate('/financial')} />
+              <QuickActionItem icon={Plus} label="Cadastrar Cliente" desc="Novo registro no banco" color="blue" onClick={() => onNavigate?.('clients')} />
+              <QuickActionItem icon={FileText} label="Gerar Relatório" desc="PDF Mensal de vendas" color="purple" onClick={() => onNavigate?.('finance')} />
               {isAdmin && (
                 <>
-                  <QuickActionItem icon={Users} label="Gerenciar Equipe" desc="Controle de usuários" color="orange" onClick={() => navigate('/users')} />
-                  <QuickActionItem icon={RefreshCw} label="Verificar Updates" desc="Whatch Pro OS v1.3.0" color="primary" onClick={() => navigate('/settings')} />
+                  <QuickActionItem icon={Users} label="Gerenciar Equipe" desc="Controle de usuários" color="orange" onClick={() => onNavigate?.('users')} />
+                  <QuickActionItem icon={RefreshCw} label="Verificar Updates" desc="Whatch Pro OS v1.3.0" color="primary" onClick={() => onNavigate?.('settings')} />
                 </>
               )}
             </div>
