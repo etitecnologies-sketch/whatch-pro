@@ -100,6 +100,23 @@ export interface Transaction {
   clientId?: string; // Link to Client for billing
 }
 
+export interface ServiceOrder {
+  id: string;
+  userId: string;
+  adminId?: string;
+  number: string;
+  clientId: string;
+  equipment: string;
+  problem: string;
+  diagnosis?: string;
+  status: 'pending' | 'diagnosing' | 'waiting-approval' | 'approved' | 'in-progress' | 'completed' | 'cancelled';
+  items: QuotationItem[];
+  laborCost: number;
+  totalAmount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface FiscalDocument {
   id: string;
   userId: string;

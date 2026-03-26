@@ -11,6 +11,9 @@ import Quotations from './pages/Quotations'
 import Users from './pages/Users'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
+import PDV from './pages/PDV'
+import ServiceOrders from './pages/ServiceOrders'
+import CRM from './pages/CRM'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { AppearanceProvider } from './hooks/useAppearance'
 
@@ -39,6 +42,8 @@ function AppContent() {
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard onNavigate={setActiveTab} />
+      case 'pdv':
+        return <PDV />
       case 'clients':
         return <Clients />
       case 'employees':
@@ -53,6 +58,10 @@ function AppContent() {
         return <Documents />
       case 'quotations':
         return <Quotations />
+      case 'service-orders':
+        return <ServiceOrders />
+      case 'crm':
+        return <CRM />
       case 'users':
         return <Users />
       case 'settings':

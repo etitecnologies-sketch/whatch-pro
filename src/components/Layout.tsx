@@ -21,7 +21,10 @@ import {
   AlertTriangle,
   CheckCircle2,
   Info,
-  FileText as FileTextIcon
+  FileText as FileTextIcon,
+  ShoppingCart,
+  Wrench,
+  Target
 } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -81,9 +84,12 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
 
   const sidebarItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'pdv', icon: ShoppingCart, label: 'PDV (Caixa)' },
+    { id: 'crm', icon: Target, label: 'CRM (Vendas)' },
     { id: 'clients', icon: Building2, label: 'Clientes' },
     { id: 'employees', icon: UsersIcon, label: 'Funcionários' },
     { id: 'inventory', icon: Package, label: 'Estoque' },
+    { id: 'service-orders', icon: Wrench, label: 'Ordens de Serviço' },
     { id: 'projects', icon: Briefcase, label: 'Projetos' },
     { id: 'quotations', icon: FileTextIcon, label: 'Orçamentos' },
     { id: 'finance', icon: DollarSign, label: 'Financeiro' },

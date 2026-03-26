@@ -42,6 +42,8 @@ export function useData() {
     }
   }, [tenantId]);
 
+  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
+
   // Helper to load local data - Uses tenantId for isolation
   const loadLocalData = useCallback((tId: string | null) => {
     if (!tId) return;
@@ -52,6 +54,7 @@ export function useData() {
     setTransactions(JSON.parse(localStorage.getItem(`transactions_${tId}`) || '[]'));
     setFiscalDocuments(JSON.parse(localStorage.getItem(`fiscal_documents_${tId}`) || '[]'));
     setQuotations(JSON.parse(localStorage.getItem(`quotations_${tId}`) || '[]'));
+    setServiceOrders(JSON.parse(localStorage.getItem(`service_orders_${tId}`) || '[]'));
   }, []);
 
   // Helper to save local data - Uses tenantId for isolation
@@ -73,6 +76,7 @@ export function useData() {
       let queryTransactions = supabase.from('transactions').select('*');
       let queryFiscal = supabase.from('fiscal_documents').select('*');
       let queryQuotations = supabase.from('quotations').select('*');
+      let queryServiceOrders = supabase.from('service_orders').select('*');
 
       // Strict isolation: Filter by admin_id (Tenant ID)
       // Master user sees everything (no filter)
@@ -84,6 +88,7 @@ export function useData() {
         queryTransactions = queryTransactions.eq('admin_id', tenantId);
         queryFiscal = queryFiscal.eq('admin_id', tenantId);
         queryQuotations = queryQuotations.eq('admin_id', tenantId);
+        queryServiceOrders = queryServiceOrders.eq('admin_id', tenantId);
       }
 
       const [
@@ -93,7 +98,8 @@ export function useData() {
         { data: projectsData },
         { data: transactionsData },
         { data: fiscalDocumentsData },
-        { data: quotationsData }
+        { data: quotationsData },
+        { data: serviceOrdersData }
       ] = await Promise.all([
         queryClients,
         queryEmployees,
@@ -101,7 +107,8 @@ export function useData() {
         queryProjects,
         queryTransactions,
         queryFiscal,
-        queryQuotations
+        queryQuotations,
+        queryServiceOrders
       ]);
 
       const mapFromDB = (item: any, table: string) => {
@@ -187,6 +194,11 @@ export function useData() {
         const mapped = quotationsData.map(d => mapFromDB(d, 'quotations'));
         setQuotations(mapped); 
         saveLocalData(tenantId, 'quotations', mapped); 
+      }
+      if (serviceOrdersData && serviceOrdersData.length > 0) { 
+        const mapped = serviceOrdersData.map(d => mapFromDB(d, 'service_orders'));
+        setServiceOrders(mapped); 
+        saveLocalData(tenantId, 'service_orders', mapped); 
       }
 
       const now = new Date().toLocaleString();
@@ -472,6 +484,36 @@ export function useData() {
     }
   }, [asaasToken, asaasEnv, syncClientWithAsaas]);
 
+  const addServiceOrder = useCallback((os: Omit<ServiceOrder, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newOs: ServiceOrder = {
+      ...os,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setServiceOrders(prev => {
+      const updated = [...prev, newOs];
+      saveData('service_orders', updated);
+      return updated;
+    });
+  }, [saveData]);
+
+  const updateServiceOrder = useCallback((id: string, updates: Partial<ServiceOrder>) => {
+    setServiceOrders(prev => {
+      const updated = prev.map(os => os.id === id ? { ...os, ...updates, updatedAt: new Date().toISOString() } : os);
+      saveData('service_orders', updated);
+      return updated;
+    });
+  }, [saveData]);
+
+  const deleteServiceOrder = useCallback((id: string) => {
+    setServiceOrders(prev => {
+      const updated = prev.filter(os => os.id !== id);
+      saveData('service_orders', updated);
+      return updated;
+    });
+  }, [saveData]);
+
   return {
     clients, setClients: (data: Client[]) => saveData('clients', data),
     employees, setEmployees: (data: Employee[]) => saveData('employees', data),
@@ -487,6 +529,11 @@ export function useData() {
     setFiscalDocuments,
     quotations,
     setQuotations: (data: Quotation[]) => saveData('quotations', data),
+    serviceOrders,
+    setServiceOrders: (data: ServiceOrder[]) => saveData('service_orders', data),
+    addServiceOrder,
+    updateServiceOrder,
+    deleteServiceOrder,
     generateAsaasBoleto,
     syncAllClientsWithAsaas
   };

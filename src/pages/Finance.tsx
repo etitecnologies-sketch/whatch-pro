@@ -62,7 +62,7 @@ export default function Finance() {
         userId: user.id,
         adminId: user.adminId || user.id, // Multi-tenant link
         ...formData,
-        status: 'pending'
+        status: formData.type === 'expense' ? 'pending' : 'completed' // simplified logic
       }
       updatedTransactions = [...transactions, newTransaction]
     }
@@ -70,6 +70,14 @@ export default function Finance() {
     setTransactions(updatedTransactions)
     saveData('transactions', updatedTransactions)
     setIsModalOpen(false)
+  }
+
+  const toggleStatus = (id: string, currentStatus: string) => {
+    const updatedTransactions = transactions.map(t => 
+      t.id === id ? { ...t, status: currentStatus === 'pending' ? 'completed' : 'pending' } : t
+    )
+    setTransactions(updatedTransactions as Transaction[])
+    saveData('transactions', updatedTransactions)
   }
 
   const handleDelete = (id: string) => {
@@ -383,7 +391,15 @@ export default function Finance() {
                       </div>
                       <div>
                         <p className="text-sm font-black text-slate-900 dark:text-white leading-none mb-1">{t.description}</p>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Status: {t.status}</p>
+                        <button 
+                          onClick={() => toggleStatus(t.id, t.status)}
+                          className={cn(
+                            "text-[10px] font-bold uppercase tracking-tighter px-2 py-0.5 rounded-md transition-colors",
+                            t.status === 'completed' ? "bg-green-500/20 text-green-500" : "bg-amber-500/20 text-amber-500"
+                          )}
+                        >
+                          {t.status === 'completed' ? 'Pago / Recebido' : 'Pendente'}
+                        </button>
                       </div>
                     </div>
                   </td>
