@@ -132,6 +132,18 @@ export interface ServiceOrderType {
   updatedAt: string;
 }
 
+export interface StockMovement {
+  id: string;
+  userId: string;
+  adminId?: string;
+  productId: string;
+  quantityChange: number;
+  reason: string;
+  referenceType?: 'service-order' | 'manual' | 'pdv';
+  referenceId?: string;
+  createdAt: string;
+}
+
 export interface FiscalDocument {
   id: string;
   userId: string;

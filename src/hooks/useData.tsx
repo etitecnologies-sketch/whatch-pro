@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Client, Employee, Product, Project, Transaction, FiscalDocument, Quotation, ServiceOrder, ServiceOrderType } from '../types';
+import type { Client, Employee, Product, Project, Transaction, FiscalDocument, Quotation, ServiceOrder, ServiceOrderType, StockMovement } from '../types';
 import { useAuth } from './useAuth';
 import { supabase } from '../lib/supabase';
 import { AsaasService } from '../lib/asaas';
@@ -44,6 +44,7 @@ export function useData() {
 
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
   const [serviceOrderTypes, setServiceOrderTypes] = useState<ServiceOrderType[]>([]);
+  const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
 
   // Helper to load local data - Uses tenantId for isolation
   const loadLocalData = useCallback((tId: string | null) => {
@@ -57,6 +58,7 @@ export function useData() {
     setQuotations(JSON.parse(localStorage.getItem(`quotations_${tId}`) || '[]'));
     setServiceOrders(JSON.parse(localStorage.getItem(`service_orders_${tId}`) || '[]'));
     setServiceOrderTypes(JSON.parse(localStorage.getItem(`service_order_types_${tId}`) || '[]'));
+    setStockMovements(JSON.parse(localStorage.getItem(`stock_movements_${tId}`) || '[]'));
   }, []);
 
   // Helper to save local data - Uses tenantId for isolation
@@ -323,6 +325,7 @@ export function useData() {
         case 'quotations': setQuotations(data); break;
         case 'service_orders': setServiceOrders(data); break;
         case 'service_order_types': setServiceOrderTypes(data); break;
+        case 'stock_movements': setStockMovements(data); break;
     }
 
     // 2. Sync with Cloud (Supabase) if available
@@ -565,11 +568,95 @@ export function useData() {
     void saveData('products', updated);
   }, [products, saveData]);
 
+  const addStockMovements = useCallback(async (items: Array<Omit<StockMovement, 'id' | 'userId' | 'adminId' | 'createdAt'>>) => {
+    if (!user || !tenantId) return;
+    const next: StockMovement[] = items.map(i => ({
+      id: crypto.randomUUID(),
+      userId: user.id,
+      adminId: tenantId,
+      createdAt: new Date().toISOString(),
+      ...i
+    }));
+    await saveData('stock_movements', [...stockMovements, ...next]);
+  }, [saveData, stockMovements, tenantId, user]);
+
+  const deductStockForServiceOrder = useCallback(async (os: ServiceOrder) => {
+    if (!user || !tenantId) return { ok: false as const, error: 'Autenticação necessária.' };
+    if (os.stockDeducted) return { ok: false as const, error: 'Estoque já baixado para este chamado.' };
+    if (!os.items || os.items.length === 0) return { ok: true as const };
+
+    const shortages: string[] = [];
+    const missing: string[] = [];
+
+    for (const item of os.items) {
+      const p = products.find(prod => prod.id === item.productId);
+      if (!p) {
+        missing.push(item.name || item.productId);
+        continue;
+      }
+      if (p.quantity < item.quantity) {
+        shortages.push(`${p.name} (em estoque: ${p.quantity}, necessário: ${item.quantity})`);
+      }
+    }
+
+    if (missing.length > 0) {
+      return { ok: false as const, error: `Itens não encontrados no estoque: ${missing.join(', ')}` };
+    }
+    if (shortages.length > 0) {
+      return { ok: false as const, error: `Estoque insuficiente: ${shortages.join(' | ')}` };
+    }
+
+    const updatedProducts = products.map(p => {
+      const used = os.items.find(i => i.productId === p.id);
+      if (!used) return p;
+      return { ...p, quantity: p.quantity - used.quantity };
+    });
+
+    await saveData('products', updatedProducts);
+    await addStockMovements(os.items.map(i => ({
+      productId: i.productId,
+      quantityChange: -Math.abs(i.quantity),
+      reason: `Baixa por chamado ${os.number}`,
+      referenceType: 'service-order',
+      referenceId: os.id
+    })));
+    updateServiceOrder(os.id, { stockDeducted: true });
+
+    return { ok: true as const };
+  }, [addStockMovements, products, saveData, tenantId, updateServiceOrder, user]);
+
+  const restockForServiceOrder = useCallback(async (os: ServiceOrder) => {
+    if (!user || !tenantId) return { ok: false as const, error: 'Autenticação necessária.' };
+    if (!os.stockDeducted) return { ok: false as const, error: 'Este chamado não tem baixa de estoque registrada.' };
+    if (!os.items || os.items.length === 0) return { ok: true as const };
+
+    const updatedProducts = products.map(p => {
+      const used = os.items.find(i => i.productId === p.id);
+      if (!used) return p;
+      return { ...p, quantity: p.quantity + used.quantity };
+    });
+
+    await saveData('products', updatedProducts);
+    await addStockMovements(os.items.map(i => ({
+      productId: i.productId,
+      quantityChange: Math.abs(i.quantity),
+      reason: `Estorno de baixa do chamado ${os.number}`,
+      referenceType: 'service-order',
+      referenceId: os.id
+    })));
+    updateServiceOrder(os.id, { stockDeducted: false });
+
+    return { ok: true as const };
+  }, [addStockMovements, products, saveData, tenantId, updateServiceOrder, user]);
+
   return {
     clients, setClients: (data: Client[]) => saveData('clients', data),
     employees, setEmployees: (data: Employee[]) => saveData('employees', data),
     products, setProducts: (data: Product[]) => saveData('products', data),
     updateProduct,
+    stockMovements, setStockMovements: (data: StockMovement[]) => saveData('stock_movements', data),
+    deductStockForServiceOrder,
+    restockForServiceOrder,
     projects, setProjects: (data: Project[]) => saveData('projects', data),
     transactions, setTransactions: (data: Transaction[]) => saveData('transactions', data),
     addTransaction,

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Search, Edit2, Trash2, X, Wrench, CheckCircle2, Clock, AlertTriangle, AlertCircle, FileText, ChevronDown, Check, Send, Smartphone } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, X, Wrench, CheckCircle2, Clock, AlertTriangle, AlertCircle, FileText, ChevronDown, Check, Send, Smartphone, RotateCcw } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useData } from '../hooks/useData'
@@ -11,7 +11,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function ServiceOrders() {
-  const { serviceOrders, setServiceOrders, serviceOrderTypes, addServiceOrderType, updateServiceOrderType, deleteServiceOrderType, clients, products, employees, addServiceOrder, updateServiceOrder, deleteServiceOrder, updateProduct, addTransaction } = useData()
+  const { serviceOrders, setServiceOrders, serviceOrderTypes, addServiceOrderType, updateServiceOrderType, deleteServiceOrderType, clients, products, employees, addServiceOrder, updateServiceOrder, deleteServiceOrder, addTransaction, deductStockForServiceOrder, restockForServiceOrder } = useData()
   const { user } = useAuth()
   const [activeView, setActiveView] = useState<'tickets' | 'flows'>('tickets')
   const [searchTerm, setSearchTerm] = useState('')
@@ -65,6 +65,7 @@ export default function ServiceOrders() {
   const normalizeStatus = (status: string) => legacyStatusLabel[status] || status
 
   const canManageFlows = user?.role === 'admin' || user?.email === 'mestre@whatchpro.com'
+  const canAdminActions = user?.role === 'admin' || user?.email === 'mestre@whatchpro.com'
 
   useEffect(() => {
     if (!user) return
@@ -243,27 +244,28 @@ export default function ServiceOrders() {
   }
 
   const handleFinishOS = (os: ServiceOrder) => {
-    if (confirm('Deseja finalizar este chamado e baixar os itens do estoque?')) {
-      if (!os.stockDeducted) {
-        // Baixar estoque
-        os.items.forEach(item => {
-          const product = products.find(p => p.id === item.productId)
-          if (product) {
-            updateProduct({
-              ...product,
-              quantity: product.quantity - item.quantity
-            })
-          }
-        })
+    if (!confirm('Deseja finalizar este chamado e baixar os itens do estoque?')) return
+    void (async () => {
+      const res = await deductStockForServiceOrder(os)
+      if (!res.ok) {
+        alert(res.error)
+        return
       }
-      
-      updateServiceOrder(os.id, {
-        ...os,
-        status: 'Finalizado',
-        stockDeducted: true
-      })
-      alert('Chamado finalizado e estoque atualizado com sucesso!')
-    }
+      updateServiceOrder(os.id, { status: 'Finalizado' })
+      alert('Chamado finalizado com sucesso! Estoque atualizado e registrado.')
+    })()
+  }
+
+  const handleRestock = (os: ServiceOrder) => {
+    if (!confirm('Deseja estornar a baixa de estoque deste chamado?')) return
+    void (async () => {
+      const res = await restockForServiceOrder(os)
+      if (!res.ok) {
+        alert(res.error)
+        return
+      }
+      alert('Estorno realizado e estoque atualizado com sucesso!')
+    })()
   }
 
   const handleBillOS = (os: ServiceOrder) => {
@@ -505,6 +507,15 @@ export default function ServiceOrders() {
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {canAdminActions && os.stockDeducted && (
+                        <button 
+                          onClick={() => handleRestock(os)}
+                          className="p-2 text-slate-500 hover:text-orange-500 hover:bg-orange-500/10 rounded-xl transition-all"
+                          title="Estornar Baixa de Estoque"
+                        >
+                          <RotateCcw size={18} />
+                        </button>
+                      )}
                       {os.status !== 'Finalizado' && (
                         <button 
                           onClick={() => handleFinishOS(os)}
