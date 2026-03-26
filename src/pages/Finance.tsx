@@ -310,41 +310,50 @@ export default function Finance() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="glass p-8 rounded-[32px] border border-white/50 dark:border-slate-600/60 card-hover group">
-          <div className="flex items-center justify-between mb-6">
+        <div className="glass p-8 rounded-[32px] border border-white/50 dark:border-slate-600/60 card-hover group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <Wallet size={100} />
+          </div>
+          <div className="flex items-center justify-between mb-6 relative z-10">
             <div className="p-4 bg-primary/10 text-primary rounded-2xl group-hover:scale-110 transition-transform duration-500 shadow-inner">
               <Wallet size={32} />
             </div>
           </div>
-          <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Saldo Consolidado</p>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1 relative z-10">Saldo Consolidado</p>
           <h3 className={cn(
-            "text-3xl font-black tracking-tightest transition-all duration-500",
+            "text-3xl font-black tracking-tightest transition-all duration-500 relative z-10",
             balance >= 0 ? "text-slate-900 dark:text-white" : "text-red-500"
           )}>
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(balance)}
           </h3>
         </div>
 
-        <div className="glass p-8 rounded-[32px] border border-white/50 dark:border-slate-600/60 card-hover group">
-          <div className="flex items-center justify-between mb-6">
+        <div className="glass p-8 rounded-[32px] border border-white/50 dark:border-slate-600/60 card-hover group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <TrendingUp size={100} />
+          </div>
+          <div className="flex items-center justify-between mb-6 relative z-10">
             <div className="p-4 bg-green-500/10 text-green-500 rounded-2xl group-hover:scale-110 transition-transform duration-500 shadow-inner">
               <TrendingUp size={32} />
             </div>
           </div>
-          <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Total Receitas</p>
-          <h3 className="text-3xl font-black text-green-500 tracking-tightest">
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1 relative z-10">Total Receitas</p>
+          <h3 className="text-3xl font-black text-green-500 tracking-tightest relative z-10">
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(income)}
           </h3>
         </div>
 
-        <div className="glass p-8 rounded-[32px] border border-white/50 dark:border-slate-600/60 card-hover group">
-          <div className="flex items-center justify-between mb-6">
+        <div className="glass p-8 rounded-[32px] border border-white/50 dark:border-slate-600/60 card-hover group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <TrendingDown size={100} />
+          </div>
+          <div className="flex items-center justify-between mb-6 relative z-10">
             <div className="p-4 bg-red-500/10 text-red-500 rounded-2xl group-hover:scale-110 transition-transform duration-500 shadow-inner">
               <TrendingDown size={32} />
             </div>
           </div>
-          <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Total Despesas</p>
-          <h3 className="text-3xl font-black text-red-500 tracking-tightest">
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1 relative z-10">Contas a Pagar / Despesas</p>
+          <h3 className="text-3xl font-black text-red-500 tracking-tightest relative z-10">
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(expenses)}
           </h3>
         </div>
@@ -516,17 +525,17 @@ export default function Finance() {
                   <span className="text-[10px] font-black uppercase tracking-widest">Receita</span>
                 </button>
                 <button
-                  onClick={() => setFormData({ ...formData, type: 'expense' })}
-                  className={cn(
-                    "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
-                    formData.type === 'expense' 
-                      ? "bg-red-500/10 border-red-500 text-red-500 shadow-lg shadow-red-500/10" 
-                      : "bg-slate-50 dark:bg-slate-900 border-transparent text-slate-400"
-                  )}
-                >
-                  <TrendingDown size={24} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Despesa</span>
-                </button>
+                    onClick={() => setFormData({ ...formData, type: 'expense' })}
+                    className={cn(
+                      "p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
+                      formData.type === 'expense' 
+                        ? "bg-red-500/10 border-red-500 text-red-500 shadow-lg shadow-red-500/10" 
+                        : "bg-slate-50 dark:bg-slate-900 border-transparent text-slate-400"
+                    )}
+                  >
+                    <ArrowDownLeft size={24} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Conta a Pagar (Despesa)</span>
+                  </button>
               </div>
 
               <div className="space-y-4">

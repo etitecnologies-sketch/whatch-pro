@@ -1,10 +1,10 @@
-import { useState } from 'react'
-import { Plus, Search, Edit2, Trash2, X, Wrench, CheckCircle2, Clock, AlertTriangle } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Plus, Search, Edit2, Trash2, X, Wrench, CheckCircle2, Clock, AlertTriangle, AlertCircle, FileText, ChevronDown, Check, Send, Smartphone } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useData } from '../hooks/useData'
 import { useAuth } from '../hooks/useAuth'
-import type { ServiceOrder } from '../types'
+import type { ServiceOrder, Product, Client } from '../types'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -122,20 +122,20 @@ export default function ServiceOrders() {
   }
 
   const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'pending': return 'bg-amber-500/20 text-amber-500'
-      case 'diagnosing': return 'bg-blue-500/20 text-blue-500'
-      case 'waiting-approval': return 'bg-purple-500/20 text-purple-500'
-      case 'approved': return 'bg-indigo-500/20 text-indigo-500'
-      case 'in-progress': return 'bg-primary/20 text-primary'
-      case 'completed': return 'bg-green-500/20 text-green-500'
-      case 'cancelled': return 'bg-red-500/20 text-red-500'
-      default: return 'bg-slate-500/20 text-slate-500'
+    switch (status) {
+      case 'pending': return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20'
+      case 'diagnosing': return 'text-blue-500 bg-blue-500/10 border-blue-500/20'
+      case 'waiting-approval': return 'text-orange-500 bg-orange-500/10 border-orange-500/20'
+      case 'approved': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
+      case 'in-progress': return 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20'
+      case 'completed': return 'text-green-500 bg-green-500/10 border-green-500/20'
+      case 'cancelled': return 'text-red-500 bg-red-500/10 border-red-500/20'
+      default: return 'text-slate-500 bg-slate-500/10 border-slate-500/20'
     }
   }
 
   const getStatusLabel = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'pending': return 'Pendente'
       case 'diagnosing': return 'Em Análise'
       case 'waiting-approval': return 'Aguardando Aprovação'
@@ -145,6 +145,37 @@ export default function ServiceOrders() {
       case 'cancelled': return 'Cancelado'
       default: return status
     }
+  }
+
+  const sendViaWhatsApp = (os: ServiceOrder) => {
+    const client = clients.find(c => c.id === os.clientId)
+    if (!client || !client.phone) {
+      alert('Cliente não possui telefone cadastrado.')
+      return
+    }
+
+    const message = `Olá, ${client.name}!\n\nAqui estão os detalhes da sua Ordem de Serviço (OS: ${os.number}):\n\n*Equipamento:* ${os.equipment}\n*Status:* ${getStatusLabel(os.status)}\n*Defeito Relatado:* ${os.problem}\n${os.diagnosis ? `*Diagnóstico:* ${os.diagnosis}\n` : ''}\n*Valor Total:* ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(os.totalAmount)}\n\nAgradecemos a preferência!`
+    
+    // Format phone number (remove everything but numbers)
+    const phone = client.phone.replace(/\D/g, '')
+    const whatsappUrl = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`
+    
+    window.open(whatsappUrl, '_blank')
+  }
+
+  const sendViaTelegram = (os: ServiceOrder) => {
+    const client = clients.find(c => c.id === os.clientId)
+    if (!client || !client.phone) {
+      alert('Cliente não possui telefone cadastrado.')
+      return
+    }
+
+    const message = `Olá, ${client.name}!\n\nAqui estão os detalhes da sua Ordem de Serviço (OS: ${os.number}):\n\n*Equipamento:* ${os.equipment}\n*Status:* ${getStatusLabel(os.status)}\n*Defeito Relatado:* ${os.problem}\n${os.diagnosis ? `*Diagnóstico:* ${os.diagnosis}\n` : ''}\n*Valor Total:* ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(os.totalAmount)}\n\nAgradecemos a preferência!`
+    
+    // Telegram usually uses usernames, but we can try phone or just open the share intent
+    const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent('Ordem de Serviço - Whatch Pro')}&text=${encodeURIComponent(message)}`
+    
+    window.open(telegramUrl, '_blank')
   }
 
   return (
@@ -216,8 +247,22 @@ export default function ServiceOrders() {
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(os.totalAmount)}
                     </p>
                   </td>
-                  <td className="px-8 py-6 text-right">
+                  <td className="px-8 py-6">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => sendViaWhatsApp(os)}
+                        className="p-2 text-slate-500 hover:text-green-500 hover:bg-green-500/10 rounded-xl transition-all"
+                        title="Enviar via WhatsApp"
+                      >
+                        <Smartphone size={18} />
+                      </button>
+                      <button 
+                        onClick={() => sendViaTelegram(os)}
+                        className="p-2 text-slate-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all"
+                        title="Enviar via Telegram"
+                      >
+                        <Send size={18} />
+                      </button>
                       <button 
                         onClick={() => openModal(os)}
                         className="p-2 text-slate-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all"
