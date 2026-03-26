@@ -11,7 +11,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export default function ServiceOrders() {
-  const { serviceOrders, setServiceOrders, serviceOrderTypes, addServiceOrderType, updateServiceOrderType, deleteServiceOrderType, clients, products, addServiceOrder, updateServiceOrder, deleteServiceOrder } = useData()
+  const { serviceOrders, setServiceOrders, serviceOrderTypes, addServiceOrderType, updateServiceOrderType, deleteServiceOrderType, clients, products, employees, addServiceOrder, updateServiceOrder, deleteServiceOrder, updateProduct, addTransaction } = useData()
   const { user } = useAuth()
   const [activeView, setActiveView] = useState<'tickets' | 'flows'>('tickets')
   const [searchTerm, setSearchTerm] = useState('')
@@ -23,6 +23,7 @@ export default function ServiceOrders() {
   const [formData, setFormData] = useState({
     typeId: '',
     clientId: '',
+    technicianId: '',
     equipment: '',
     problem: '',
     diagnosis: '',
@@ -114,6 +115,7 @@ export default function ServiceOrders() {
       setFormData({
         typeId: os.typeId || defaultType?.id || '',
         clientId: os.clientId,
+        technicianId: os.technicianId || '',
         equipment: os.equipment,
         problem: os.problem,
         diagnosis: os.diagnosis || '',
@@ -126,6 +128,7 @@ export default function ServiceOrders() {
       setFormData({
         typeId: defaultType?.id || '',
         clientId: '',
+        technicianId: '',
         equipment: '',
         problem: '',
         diagnosis: '',
@@ -217,6 +220,95 @@ export default function ServiceOrders() {
 
   const getStatusLabel = (status: string) => {
     return normalizeStatus(status)
+  }
+
+  const sendToTechnician = (os: ServiceOrder) => {
+    if (!os.technicianId) {
+      alert('Nenhum técnico atribuído a este chamado.')
+      return
+    }
+    const technician = employees.find(e => e.id === os.technicianId)
+    if (!technician || !technician.phone) {
+      alert('Técnico não possui telefone cadastrado.')
+      return
+    }
+
+    const typeName = getTypeForOS(os)?.name || 'Chamado'
+    const message = `Olá, ${technician.name}!\n\nVocê tem um novo ${typeName} atribuído (OS: ${os.number}):\n\n*Equipamento:* ${os.equipment}\n*Defeito Relatado:* ${os.problem}\n\nPor favor, atualize o status quando iniciar o atendimento.`
+    
+    const phone = technician.phone.replace(/\D/g, '')
+    const whatsappUrl = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`
+    
+    window.open(whatsappUrl, '_blank')
+  }
+
+  const handleFinishOS = (os: ServiceOrder) => {
+    if (confirm('Deseja finalizar este chamado e baixar os itens do estoque?')) {
+      if (!os.stockDeducted) {
+        // Baixar estoque
+        os.items.forEach(item => {
+          const product = products.find(p => p.id === item.productId)
+          if (product) {
+            updateProduct({
+              ...product,
+              quantity: product.quantity - item.quantity
+            })
+          }
+        })
+      }
+      
+      updateServiceOrder(os.id, {
+        ...os,
+        status: 'Finalizado',
+        stockDeducted: true
+      })
+      alert('Chamado finalizado e estoque atualizado com sucesso!')
+    }
+  }
+
+  const handleBillOS = (os: ServiceOrder) => {
+    if (os.isBilled) {
+      alert('Este chamado já foi faturado.')
+      return
+    }
+    
+    const client = clients.find(c => c.id === os.clientId)
+    
+    addTransaction({
+      description: `Faturamento OS: ${os.number} - ${client?.name || 'Cliente'}`,
+      amount: os.totalAmount,
+      type: 'income',
+      category: 'Serviços',
+      date: new Date().toISOString(),
+      status: 'pending', // Pendente até receber
+      clientId: os.clientId
+    } as any)
+
+    updateServiceOrder(os.id, {
+      ...os,
+      isBilled: true
+    })
+    
+    alert('Faturamento gerado com sucesso! Verifique a aba Financeiro.')
+  }
+
+  const sendToTechnicianTelegram = (os: ServiceOrder) => {
+    if (!os.technicianId) {
+      alert('Nenhum técnico atribuído a este chamado.')
+      return
+    }
+    const technician = employees.find(e => e.id === os.technicianId)
+    if (!technician || !technician.phone) {
+      alert('Técnico não possui telefone cadastrado.')
+      return
+    }
+
+    const typeName = getTypeForOS(os)?.name || 'Chamado'
+    const message = `Olá, ${technician.name}!\n\nVocê tem um novo ${typeName} atribuído (OS: ${os.number}):\n\n*Equipamento:* ${os.equipment}\n*Defeito Relatado:* ${os.problem}\n\nPor favor, atualize o status quando iniciar o atendimento.`
+    
+    const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent('Novo Chamado - Whatch Pro')}&text=${encodeURIComponent(message)}`
+    
+    window.open(telegramUrl, '_blank')
   }
 
   const sendViaWhatsApp = (os: ServiceOrder) => {
@@ -376,9 +468,8 @@ export default function ServiceOrders() {
                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Número</th>
                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Tipo</th>
                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Cliente</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Item</th>
+                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Técnico</th>
                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Status</th>
-                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Valor Total</th>
                 <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300 text-right">Ações</th>
               </tr>
             </thead>
@@ -392,6 +483,7 @@ export default function ServiceOrders() {
                     <p className="text-sm font-bold text-slate-900 dark:text-white">
                       {getTypeForOS(os)?.name || 'Tipo removido'}
                     </p>
+                    <p className="text-xs text-slate-500 mt-1 truncate max-w-[150px]">{os.equipment}</p>
                   </td>
                   <td className="px-8 py-6">
                     <p className="text-sm font-bold text-slate-900 dark:text-white">
@@ -399,34 +491,56 @@ export default function ServiceOrders() {
                     </p>
                   </td>
                   <td className="px-8 py-6">
-                    <p className="text-sm text-slate-600 dark:text-slate-300 truncate max-w-[200px]">{os.equipment}</p>
+                    <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                      {employees.find(e => e.id === os.technicianId)?.name || 'Não atribuído'}
+                    </p>
                   </td>
                   <td className="px-8 py-6">
-                    <span className={cn("px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest", getStatusColor(os.status))}>
+                    <span className={cn("px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest block w-max mb-2", getStatusColor(os.status))}>
                       {getStatusLabel(os.status)}
                     </span>
-                  </td>
-                  <td className="px-8 py-6">
                     <p className="text-sm font-black text-slate-900 dark:text-white">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(os.totalAmount)}
                     </p>
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => sendViaWhatsApp(os)}
-                        className="p-2 text-slate-500 hover:text-green-500 hover:bg-green-500/10 rounded-xl transition-all"
-                        title="Enviar via WhatsApp"
-                      >
-                        <Smartphone size={18} />
-                      </button>
-                      <button 
-                        onClick={() => sendViaTelegram(os)}
-                        className="p-2 text-slate-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all"
-                        title="Enviar via Telegram"
-                      >
-                        <Send size={18} />
-                      </button>
+                      {os.status !== 'Finalizado' && (
+                        <button 
+                          onClick={() => handleFinishOS(os)}
+                          className="p-2 text-slate-500 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all"
+                          title="Finalizar Chamado e Baixar Estoque"
+                        >
+                          <CheckCircle2 size={18} />
+                        </button>
+                      )}
+                      {os.status === 'Finalizado' && !os.isBilled && (
+                        <button 
+                          onClick={() => handleBillOS(os)}
+                          className="p-2 text-slate-500 hover:text-indigo-500 hover:bg-indigo-500/10 rounded-xl transition-all"
+                          title="Gerar Faturamento"
+                        >
+                          <FileText size={18} />
+                        </button>
+                      )}
+                      {os.technicianId && (
+                        <>
+                          <button 
+                            onClick={() => sendToTechnician(os)}
+                            className="p-2 text-slate-500 hover:text-green-500 hover:bg-green-500/10 rounded-xl transition-all"
+                            title="Enviar para o Técnico (WhatsApp)"
+                          >
+                            <Smartphone size={18} />
+                          </button>
+                          <button 
+                            onClick={() => sendToTechnicianTelegram(os)}
+                            className="p-2 text-slate-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all"
+                            title="Enviar para o Técnico (Telegram)"
+                          >
+                            <Send size={18} />
+                          </button>
+                        </>
+                      )}
                       <button 
                         onClick={() => openModal(os)}
                         className="p-2 text-slate-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all"
@@ -473,9 +587,9 @@ export default function ServiceOrders() {
             </div>
             
             <div className="p-8 overflow-y-auto custom-scrollbar space-y-6 flex-1">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Cliente</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Cliente / Solicitante</label>
                   <select
                     required
                     value={formData.clientId}
@@ -485,6 +599,20 @@ export default function ServiceOrders() {
                     <option value="">Selecione um cliente...</option>
                     {clients.map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Técnico / Responsável</label>
+                  <select
+                    value={formData.technicianId}
+                    onChange={(e) => setFormData({ ...formData, technicianId: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                  >
+                    <option value="">Sem responsável (Aberto)</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.id}>{emp.name}</option>
                     ))}
                   </select>
                 </div>

@@ -107,6 +107,7 @@ export interface ServiceOrder {
   number: string;
   typeId?: string;
   clientId: string;
+  technicianId?: string; // Link to Employee (technician)
   equipment: string;
   problem: string;
   diagnosis?: string;
@@ -114,6 +115,8 @@ export interface ServiceOrder {
   items: QuotationItem[];
   laborCost: number;
   totalAmount: number;
+  isBilled?: boolean; // Se já foi faturado
+  stockDeducted?: boolean; // Se os itens já foram baixados do estoque
   createdAt: string;
   updatedAt: string;
 }
