@@ -102,7 +102,7 @@ export default function Inventory() {
       setFormData({
         name: product.name,
         sku: product.sku,
-        category: product.category,
+        category: product.category || 'Computadores',
         quantity: product.quantity,
         minQuantity: product.minQuantity,
         costPrice: product.costPrice || 0,
@@ -116,7 +116,7 @@ export default function Inventory() {
       setFormData({ 
         name: '', 
         sku: '', 
-        category: 'Informática', 
+        category: 'Computadores', 
         quantity: 0, 
         minQuantity: 0, 
         costPrice: 0, 
@@ -444,10 +444,34 @@ export default function Inventory() {
                     onChange={e => setFormData({ ...formData, category: e.target.value })}
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner appearance-none"
                   >
-                    <option value="Informática">Informática</option>
-                    <option value="Eletrônicos">Eletrônicos</option>
-                    <option value="Acessórios">Acessórios</option>
-                    <option value="Serviços">Serviços</option>
+                    <optgroup label="Tecnologia & Informática">
+                      <option value="Computadores">Computadores & Laptops</option>
+                      <option value="Hardware">Hardware & Peças</option>
+                      <option value="Periféricos">Periféricos & Acessórios</option>
+                      <option value="Redes">Equipamentos de Rede</option>
+                      <option value="Servidores">Servidores & Storage</option>
+                    </optgroup>
+                    <optgroup label="Eletrônicos & Segurança">
+                      <option value="CFTV">Câmeras & CFTV</option>
+                      <option value="Controle de Acesso">Controle de Acesso</option>
+                      <option value="Telefonia">Telefonia & PABX</option>
+                      <option value="Automação">Automação Residencial</option>
+                    </optgroup>
+                    <optgroup label="Áudio & Vídeo">
+                      <option value="Projetores">Projetores & Monitores</option>
+                      <option value="Som">Equipamentos de Som</option>
+                    </optgroup>
+                    <optgroup label="Infraestrutura">
+                      <option value="Cabeamento">Cabos & Fios</option>
+                      <option value="Racks">Racks & Calhas</option>
+                      <option value="Energia">Nobreaks & Energia</option>
+                      <option value="Ferramentas">Ferramentas de Instalação</option>
+                    </optgroup>
+                    <optgroup label="Outros">
+                      <option value="Licenças">Licenças de Software</option>
+                      <option value="Serviços">Serviços & Mão de Obra</option>
+                      <option value="Diversos">Diversos</option>
+                    </optgroup>
                   </select>
                 </div>
                 <div className="space-y-2">
