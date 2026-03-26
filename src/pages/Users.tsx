@@ -36,12 +36,15 @@ export default function Users() {
     { id: 'crm', label: 'CRM (Vendas)' },
     { id: 'clients', label: 'Clientes' },
     { id: 'inventory', label: 'Estoque / Itens' },
-    { id: 'service-orders', label: 'Chamados' },
+    { id: 'service-orders', label: 'Chamados (Acesso)' },
+    { id: 'service-orders-tech', label: 'Chamados (Técnico)' },
+    { id: 'service-orders-admin', label: 'Chamados (Admin)' },
     { id: 'quotations', label: 'Gerar Orçamentos' },
     { id: 'appearance', label: 'Mudar Aparência' },
     { id: 'employees', label: 'Funcionários' },
     { id: 'projects', label: 'Projetos' },
-    { id: 'finance', label: 'Financeiro' },
+    { id: 'finance', label: 'Financeiro (Acesso)' },
+    { id: 'finance-billing', label: 'Financeiro (Cobrança/Baixa)' },
     { id: 'documents', label: 'Documentos' },
   ]
 

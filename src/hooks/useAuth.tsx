@@ -279,8 +279,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Support for legacy "user" role (if any)
     if ((user as any).role === 'user') return true;
     
+    const perms = user.permissions || []
+    if (permission === 'service-orders') return perms.includes('service-orders') || perms.includes('service-orders-tech') || perms.includes('service-orders-admin')
+    if (permission === 'finance') return perms.includes('finance') || perms.includes('finance-billing')
+
     // Standard permission check for sub-users
-    return user.permissions?.includes(permission) || false;
+    return perms.includes(permission) || false;
   };
 
   return (

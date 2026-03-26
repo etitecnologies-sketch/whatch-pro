@@ -49,7 +49,9 @@ export default function ServiceOrders() {
     'Aguardando Aprovação',
     'Aprovado',
     'Em Execução',
+    'Finalizado Técnico',
     'Finalizado',
+    'Aguardando Faturamento',
     'Cancelado'
   ]), [])
 
@@ -65,8 +67,14 @@ export default function ServiceOrders() {
 
   const normalizeStatus = (status: string) => legacyStatusLabel[status] || status
 
-  const canManageFlows = user?.role === 'admin' || user?.email === 'mestre@whatchpro.com'
-  const canAdminActions = user?.role === 'admin' || user?.email === 'mestre@whatchpro.com'
+  const isMaster = user?.email === 'mestre@whatchpro.com'
+  const isCompanyAdmin = user?.role === 'admin'
+  const perms = user?.permissions || []
+  const canManageFlows = isCompanyAdmin || isMaster
+  const canServiceAdmin = isCompanyAdmin || isMaster || perms.includes('service-orders-admin')
+  const canTechnician = isCompanyAdmin || isMaster || perms.includes('service-orders-tech') || perms.includes('service-orders-admin')
+  const isTechOnly = !!user && !isCompanyAdmin && !isMaster && perms.includes('service-orders-tech') && !perms.includes('service-orders-admin')
+  const canFinanceBilling = isCompanyAdmin || isMaster || perms.includes('finance-billing') || perms.includes('finance')
 
   useEffect(() => {
     if (!user) return
@@ -112,6 +120,10 @@ export default function ServiceOrders() {
   const statusOptions = (activeType?.statuses && activeType.statuses.length > 0) ? activeType.statuses : defaultStatuses
 
   const openModal = (os: ServiceOrder | null = null) => {
+    if (!os && !canServiceAdmin) {
+      alert('Apenas o administrador de chamados pode abrir novos chamados.')
+      return
+    }
     if (os) {
       setEditingOS(os)
       setFormData({
@@ -173,18 +185,40 @@ export default function ServiceOrders() {
   const handleSave = () => {
     if (!user) return
 
-    const totalItems = formData.items.reduce((acc, item) => acc + item.total, 0)
-    const totalAmount = totalItems + formData.laborCost
-    const selectedType = serviceOrderTypes.find(t => t.id === formData.typeId) || defaultType
-    const prefix = (selectedType?.prefix || 'CH').toUpperCase().replace(/\s+/g, '').slice(0, 6) || 'CH'
-
     if (editingOS) {
-      updateServiceOrder(editingOS.id, {
-        ...formData,
-        status: normalizeStatus(formData.status),
-        totalAmount
-      })
+      if (isTechOnly) {
+        const totalItems = formData.items.reduce((acc, item) => acc + item.total, 0)
+        const totalAmount = totalItems + editingOS.laborCost
+        const rawStatus = normalizeStatus(formData.status)
+        const nextStatus = rawStatus === 'Finalizado' || rawStatus === 'Aguardando Faturamento' ? 'Finalizado Técnico' : rawStatus
+
+        updateServiceOrder(editingOS.id, {
+          status: nextStatus,
+          diagnosis: formData.diagnosis,
+          items: formData.items,
+          totalAmount
+        })
+      } else if (canServiceAdmin) {
+        const totalItems = formData.items.reduce((acc, item) => acc + item.total, 0)
+        const totalAmount = totalItems + formData.laborCost
+        updateServiceOrder(editingOS.id, {
+          ...formData,
+          status: normalizeStatus(formData.status),
+          totalAmount
+        })
+      } else {
+        alert('Você não tem permissão para editar este chamado.')
+        return
+      }
     } else {
+      if (!canServiceAdmin) {
+        alert('Você não tem permissão para criar chamados.')
+        return
+      }
+      const totalItems = formData.items.reduce((acc, item) => acc + item.total, 0)
+      const totalAmount = totalItems + formData.laborCost
+      const selectedType = serviceOrderTypes.find(t => t.id === formData.typeId) || defaultType
+      const prefix = (selectedType?.prefix || 'CH').toUpperCase().replace(/\s+/g, '').slice(0, 6) || 'CH'
       addServiceOrder({
         userId: user.id,
         adminId: user.adminId || user.id,
@@ -198,6 +232,10 @@ export default function ServiceOrders() {
   }
 
   const handleDelete = (id: string) => {
+    if (!canServiceAdmin) {
+      alert('Você não tem permissão para excluir chamados.')
+      return
+    }
     if (confirm('Tem certeza que deseja excluir este Chamado?')) {
       deleteServiceOrder(id)
     }
@@ -216,7 +254,9 @@ export default function ServiceOrders() {
     if (s === 'Aguardando Aprovação') return 'text-orange-500 bg-orange-500/10 border-orange-500/20'
     if (s === 'Aprovado') return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
     if (s === 'Em Execução') return 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20'
+    if (s === 'Finalizado Técnico') return 'text-lime-500 bg-lime-500/10 border-lime-500/20'
     if (s === 'Finalizado') return 'text-green-500 bg-green-500/10 border-green-500/20'
+    if (s === 'Aguardando Faturamento') return 'text-fuchsia-500 bg-fuchsia-500/10 border-fuchsia-500/20'
     if (s === 'Cancelado') return 'text-red-500 bg-red-500/10 border-red-500/20'
     return 'text-slate-500 bg-slate-500/10 border-slate-500/20'
   }
@@ -246,6 +286,10 @@ export default function ServiceOrders() {
   }
 
   const handleFinishOS = (os: ServiceOrder) => {
+    if (!canServiceAdmin) {
+      alert('Apenas o administrador pode finalizar o chamado e baixar estoque.')
+      return
+    }
     if (!confirm('Deseja finalizar este chamado e baixar os itens do estoque?')) return
     void (async () => {
       const res = await deductStockForServiceOrder(os)
@@ -259,6 +303,10 @@ export default function ServiceOrders() {
   }
 
   const handleRestock = (os: ServiceOrder) => {
+    if (!canServiceAdmin) {
+      alert('Apenas o administrador pode estornar a baixa de estoque.')
+      return
+    }
     if (!confirm('Deseja estornar a baixa de estoque deste chamado?')) return
     void (async () => {
       const res = await restockForServiceOrder(os)
@@ -270,9 +318,30 @@ export default function ServiceOrders() {
     })()
   }
 
-  const handleBillOS = (os: ServiceOrder) => {
+  const handleSendToBilling = (os: ServiceOrder) => {
+    if (!canServiceAdmin) {
+      alert('Apenas o administrador pode enviar para faturamento.')
+      return
+    }
     if (os.isBilled) {
       alert('Este chamado já foi faturado.')
+      return
+    }
+    updateServiceOrder(os.id, { status: 'Aguardando Faturamento' })
+    alert('Chamado enviado para o Financeiro. Gere a cobrança na aba Financeiro.')
+  }
+
+  const handleBillOS = (os: ServiceOrder) => {
+    if (!canFinanceBilling) {
+      alert('Apenas o Financeiro pode gerar cobrança e fazer baixa.')
+      return
+    }
+    if (os.isBilled) {
+      alert('Este chamado já foi faturado.')
+      return
+    }
+    if (!isCompanyAdmin && !isMaster && normalizeStatus(os.status) !== 'Aguardando Faturamento') {
+      alert('Este chamado ainda não foi enviado para faturamento. O administrador deve enviar antes.')
       return
     }
     
@@ -367,6 +436,10 @@ export default function ServiceOrders() {
 
   const handleSaveType = () => {
     if (!user) return
+    if (!canManageFlows) {
+      alert('Apenas administradores podem gerenciar tipos e fluxos.')
+      return
+    }
     const statuses = typeForm.statusesText
       .split(/\r?\n|,/g)
       .map(s => s.trim())
@@ -400,6 +473,10 @@ export default function ServiceOrders() {
   }
 
   const handleDeleteType = (id: string) => {
+    if (!canManageFlows) {
+      alert('Apenas administradores podem gerenciar tipos e fluxos.')
+      return
+    }
     if (confirm('Tem certeza que deseja excluir este tipo de chamado?')) {
       deleteServiceOrderType(id)
     }
@@ -437,7 +514,7 @@ export default function ServiceOrders() {
               </button>
             )}
           </div>
-          {activeView === 'tickets' && (
+          {activeView === 'tickets' && canServiceAdmin && (
             <button 
               onClick={() => openModal()}
               className="px-6 py-3 bg-primary text-white font-black rounded-2xl glow-primary hover:scale-105 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
@@ -509,7 +586,7 @@ export default function ServiceOrders() {
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {canAdminActions && os.stockDeducted && (
+                      {canServiceAdmin && os.stockDeducted && (
                         <button 
                           onClick={() => handleRestock(os)}
                           className="p-2 text-slate-500 hover:text-orange-500 hover:bg-orange-500/10 rounded-xl transition-all"
@@ -518,7 +595,7 @@ export default function ServiceOrders() {
                           <RotateCcw size={18} />
                         </button>
                       )}
-                      {os.status !== 'Finalizado' && (
+                      {canServiceAdmin && normalizeStatus(os.status) !== 'Finalizado' && normalizeStatus(os.status) !== 'Aguardando Faturamento' && (
                         <button 
                           onClick={() => handleFinishOS(os)}
                           className="p-2 text-slate-500 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all"
@@ -527,16 +604,25 @@ export default function ServiceOrders() {
                           <CheckCircle2 size={18} />
                         </button>
                       )}
-                      {os.status === 'Finalizado' && !os.isBilled && (
+                      {canServiceAdmin && normalizeStatus(os.status) === 'Finalizado' && !os.isBilled && (
+                        <button 
+                          onClick={() => handleSendToBilling(os)}
+                          className="p-2 text-slate-500 hover:text-fuchsia-500 hover:bg-fuchsia-500/10 rounded-xl transition-all"
+                          title="Enviar para Faturamento"
+                        >
+                          <Send size={18} />
+                        </button>
+                      )}
+                      {canFinanceBilling && normalizeStatus(os.status) === 'Aguardando Faturamento' && !os.isBilled && (
                         <button 
                           onClick={() => handleBillOS(os)}
                           className="p-2 text-slate-500 hover:text-indigo-500 hover:bg-indigo-500/10 rounded-xl transition-all"
-                          title="Gerar Faturamento"
+                          title="Gerar Cobrança (Financeiro)"
                         >
                           <FileText size={18} />
                         </button>
                       )}
-                      {os.technicianId && (
+                      {canServiceAdmin && os.technicianId && (
                         <>
                           <button 
                             onClick={() => sendToTechnician(os)}
@@ -554,20 +640,24 @@ export default function ServiceOrders() {
                           </button>
                         </>
                       )}
-                      <button 
-                        onClick={() => openModal(os)}
-                        className="p-2 text-slate-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all"
-                        title="Editar"
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(os.id)}
-                        className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
-                        title="Excluir"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      {(canTechnician || canServiceAdmin || canFinanceBilling) && (
+                        <button 
+                          onClick={() => openModal(os)}
+                          className="p-2 text-slate-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all"
+                          title={canFinanceBilling && !canServiceAdmin && !canTechnician ? "Visualizar" : "Editar"}
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                      )}
+                      {canServiceAdmin && (
+                        <button 
+                          onClick={() => handleDelete(os.id)}
+                          className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                          title="Excluir"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -608,6 +698,7 @@ export default function ServiceOrders() {
                     required
                     value={formData.clientId}
                     onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
+                    disabled={!canServiceAdmin}
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
                   >
                     <option value="">Selecione um cliente...</option>
@@ -622,6 +713,7 @@ export default function ServiceOrders() {
                   <select
                     value={formData.technicianId}
                     onChange={(e) => setFormData({ ...formData, technicianId: e.target.value })}
+                    disabled={!canServiceAdmin}
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
                   >
                     <option value="">Sem responsável (Aberto)</option>
@@ -640,6 +732,7 @@ export default function ServiceOrders() {
                       const nextStatuses = (nextType?.statuses && nextType.statuses.length > 0) ? nextType.statuses : defaultStatuses
                       setFormData({ ...formData, typeId: nextTypeId, status: nextStatuses[0] || 'Pendente' })
                     }}
+                    disabled={!canServiceAdmin}
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
                   >
                     {serviceOrderTypes.map(t => (
@@ -652,6 +745,7 @@ export default function ServiceOrders() {
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    disabled={!(canTechnician || canServiceAdmin)}
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
                   >
                     {statusOptions.map(s => (
@@ -668,6 +762,7 @@ export default function ServiceOrders() {
                   type="text"
                   value={formData.equipment}
                   onChange={(e) => setFormData({ ...formData, equipment: e.target.value })}
+                  disabled={!canServiceAdmin}
                   placeholder="Ex: Equipamento, projeto, pedido, processo..."
                   className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
                 />
@@ -680,6 +775,7 @@ export default function ServiceOrders() {
                   rows={2}
                   value={formData.problem}
                   onChange={(e) => setFormData({ ...formData, problem: e.target.value })}
+                  disabled={!canServiceAdmin}
                   placeholder="Descreva o que precisa ser feito..."
                   className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner resize-none"
                 />
@@ -691,6 +787,7 @@ export default function ServiceOrders() {
                   rows={2}
                   value={formData.diagnosis}
                   onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
+                  disabled={!(canTechnician || canServiceAdmin)}
                   placeholder="Informações adicionais, laudo, histórico..."
                   className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner resize-none"
                 />
@@ -706,6 +803,7 @@ export default function ServiceOrders() {
                     <select
                       value={selectedProductId}
                       onChange={(e) => setSelectedProductId(e.target.value)}
+                      disabled={!(canTechnician || canServiceAdmin)}
                       className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
                     >
                       <option value="">Selecione uma peça...</option>
@@ -721,12 +819,13 @@ export default function ServiceOrders() {
                       min="1"
                       value={selectedQuantity}
                       onChange={(e) => setSelectedQuantity(parseInt(e.target.value))}
+                      disabled={!(canTechnician || canServiceAdmin)}
                       className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner text-center"
                     />
                   </div>
                   <button 
                     onClick={handleAddItem}
-                    disabled={!selectedProductId}
+                    disabled={!selectedProductId || !(canTechnician || canServiceAdmin)}
                     className="h-[44px] px-4 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors"
                   >
                     Adicionar
@@ -745,9 +844,11 @@ export default function ServiceOrders() {
                           <span className="text-sm font-black text-green-400">
                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total)}
                           </span>
-                          <button onClick={() => handleRemoveItem(index)} className="text-slate-500 hover:text-red-500 transition-colors">
-                            <Trash2 size={16} />
-                          </button>
+                          {(canTechnician || canServiceAdmin) && (
+                            <button onClick={() => handleRemoveItem(index)} className="text-slate-500 hover:text-red-500 transition-colors">
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -763,6 +864,7 @@ export default function ServiceOrders() {
                       step="0.01"
                       value={formData.laborCost || ''}
                       onChange={(e) => setFormData({ ...formData, laborCost: parseFloat(e.target.value) || 0 })}
+                      disabled={!canServiceAdmin}
                       className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
                       placeholder="0"
                     />
@@ -788,14 +890,19 @@ export default function ServiceOrders() {
                 >
                   Cancelar
                 </button>
-                <button
-                  onClick={handleSave}
-                  disabled={!formData.typeId || !formData.clientId || !formData.equipment || !formData.problem}
-                  className="px-8 py-3 bg-primary text-white font-black rounded-2xl glow-primary hover:scale-105 transition-all text-sm shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center gap-2"
-                >
-                  <CheckCircle2 size={18} />
-                  {editingOS ? 'Salvar Chamado' : 'Criar Chamado'}
-                </button>
+                {(canTechnician || canServiceAdmin) && (
+                  <button
+                    onClick={handleSave}
+                    disabled={
+                      (!editingOS && (!formData.typeId || !formData.clientId || !formData.equipment || !formData.problem)) ||
+                      (!!editingOS && !isTechOnly && !canServiceAdmin)
+                    }
+                    className="px-8 py-3 bg-primary text-white font-black rounded-2xl glow-primary hover:scale-105 transition-all text-sm shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <CheckCircle2 size={18} />
+                    {editingOS ? 'Salvar Chamado' : 'Criar Chamado'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
