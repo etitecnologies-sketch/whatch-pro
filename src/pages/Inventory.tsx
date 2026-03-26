@@ -102,28 +102,28 @@ export default function Inventory() {
       setFormData({
         name: product.name,
         sku: product.sku,
-        category: product.category || 'Computadores',
+        category: product.category || 'Diversos',
         quantity: product.quantity,
         minQuantity: product.minQuantity,
         costPrice: product.costPrice || 0,
         margin: product.margin || 0,
         taxRate: product.taxRate || 0,
         price: product.price,
-        ncm: product.ncm || '82029000'
+        ncm: product.ncm || '00000000'
       })
     } else {
       setEditingProduct(null)
       setFormData({ 
         name: '', 
         sku: '', 
-        category: 'Computadores', 
+        category: 'Diversos', 
         quantity: 0, 
         minQuantity: 0, 
         costPrice: 0, 
         margin: 0, 
         taxRate: 0, 
         price: 0,
-        ncm: '82029000'
+        ncm: '00000000'
       })
     }
     setIsModalOpen(true)
@@ -444,32 +444,29 @@ export default function Inventory() {
                     onChange={e => setFormData({ ...formData, category: e.target.value })}
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner appearance-none"
                   >
-                    <optgroup label="Tecnologia & Informática">
-                      <option value="Computadores">Computadores & Laptops</option>
-                      <option value="Hardware">Hardware & Peças</option>
-                      <option value="Periféricos">Periféricos & Acessórios</option>
-                      <option value="Redes">Equipamentos de Rede</option>
-                      <option value="Servidores">Servidores & Storage</option>
+                    <optgroup label="Comércio & Varejo">
+                      <option value="Vestuário & Moda">Vestuário & Moda</option>
+                      <option value="Alimentos & Bebidas">Alimentos & Bebidas</option>
+                      <option value="Cosméticos & Beleza">Cosméticos & Beleza</option>
+                      <option value="Artigos para Casa">Artigos para Casa</option>
+                      <option value="Papelaria & Escritório">Papelaria & Escritório</option>
                     </optgroup>
-                    <optgroup label="Eletrônicos & Segurança">
-                      <option value="CFTV">Câmeras & CFTV</option>
-                      <option value="Controle de Acesso">Controle de Acesso</option>
-                      <option value="Telefonia">Telefonia & PABX</option>
-                      <option value="Automação">Automação Residencial</option>
+                    <optgroup label="Tecnologia & Eletrônicos">
+                      <option value="Computadores & Informática">Computadores & Informática</option>
+                      <option value="Celulares & Acessórios">Celulares & Acessórios</option>
+                      <option value="Áudio & Vídeo">Áudio & Vídeo</option>
+                      <option value="Equipamentos de Segurança">Equipamentos de Segurança</option>
                     </optgroup>
-                    <optgroup label="Áudio & Vídeo">
-                      <option value="Projetores">Projetores & Monitores</option>
-                      <option value="Som">Equipamentos de Som</option>
+                    <optgroup label="Indústria & Construção">
+                      <option value="Ferramentas & Ferragens">Ferramentas & Ferragens</option>
+                      <option value="Materiais de Construção">Materiais de Construção</option>
+                      <option value="Peças Automotivas">Peças Automotivas</option>
+                      <option value="Equipamentos Industriais">Equipamentos Industriais</option>
                     </optgroup>
-                    <optgroup label="Infraestrutura">
-                      <option value="Cabeamento">Cabos & Fios</option>
-                      <option value="Racks">Racks & Calhas</option>
-                      <option value="Energia">Nobreaks & Energia</option>
-                      <option value="Ferramentas">Ferramentas de Instalação</option>
-                    </optgroup>
-                    <optgroup label="Outros">
-                      <option value="Licenças">Licenças de Software</option>
-                      <option value="Serviços">Serviços & Mão de Obra</option>
+                    <optgroup label="Serviços & Outros">
+                      <option value="Mão de Obra">Mão de Obra</option>
+                      <option value="Consultoria">Consultoria</option>
+                      <option value="Licenças & Assinaturas">Licenças & Assinaturas</option>
                       <option value="Diversos">Diversos</option>
                     </optgroup>
                   </select>
