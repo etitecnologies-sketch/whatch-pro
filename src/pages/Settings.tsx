@@ -232,7 +232,7 @@ export default function Settings() {
     setIsCheckingUpdate(true)
     setTimeout(() => {
       setIsCheckingUpdate(false)
-      alert('Sua versão v1.3.0 está atualizada!\n\nNovidades:\n- Sistema de Orçamentos Dinâmicos\n- Gestão de Custos, Margens e Impostos no Estoque\n- Controle de Permissões Granulares por Admin\n- Multi-tenancy: Ambientes Totalmente Isolados\n- Melhorias na Performance de Sincronização')
+      alert('Sua versão v1.5.0-enterprise está atualizada!\n\nNovidades:\n- PDV (Frente de Caixa) com baixa automática de estoque\n- Ordens de Serviço (O.S) com peças do estoque e mão de obra\n- CRM (Vendas) com funil estilo Kanban\n- Financeiro com marcação rápida de Pago/Recebido\n- Novas categorias de produtos para múltiplos segmentos')
     }, 2000)
   }
 
@@ -977,7 +977,7 @@ export default function Settings() {
                     </div>
                     <div>
                         <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-widest leading-none mb-2">Whatch Pro OS</h4>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Versão Atual: <span className="text-primary">v1.4.0-security</span></p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Versão Atual: <span className="text-primary">v1.5.0-enterprise</span></p>
                     </div>
                 </div>
                 <button 
@@ -996,6 +996,17 @@ export default function Settings() {
                     Histórico de Atualizações
                 </h4>
                 <div className="space-y-4">
+                    <ChangelogItem 
+                        version="v1.5.0-enterprise" 
+                        date="Hoje" 
+                        changes={[
+                            "PDV (Frente de Caixa) com carrinho e baixa de estoque",
+                            "Módulo de Ordens de Serviço (O.S) com peças e mão de obra",
+                            "CRM (Vendas) com funil estilo Kanban",
+                            "Financeiro: status clicável (Pendente / Pago / Recebido)",
+                            "Categorias de produtos ampliadas para múltiplos segmentos"
+                        ]}
+                    />
                     <ChangelogItem 
                         version="v1.4.0-security" 
                         date="Hoje" 
