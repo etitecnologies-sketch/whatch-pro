@@ -54,7 +54,6 @@ export default function Settings() {
   const [configuringIntegration, setConfiguringIntegration] = useState<string | null>(null)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement>(null)
-  const logoInputRef = useRef<HTMLInputElement>(null)
   
   // SEFAZ State
   const [sefazData, setSefazData] = useState<Partial<ConfiguracaoSEFAZ>>(configuracaoSEFAZ || {
@@ -936,20 +935,19 @@ export default function Settings() {
                       className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
                     />
                     <input
-                      ref={logoInputRef}
                       type="file"
+                      id="company-logo-upload"
                       accept="image/png,image/jpeg"
-                      className="hidden"
+                      className="sr-only"
                       onChange={(e) => void handleLogoFileChange(e.target.files?.[0] || null)}
                     />
                     <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => logoInputRef.current?.click()}
-                        className="px-4 py-2 rounded-2xl bg-white/5 border border-white/10 text-slate-300 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                      <label
+                        htmlFor="company-logo-upload"
+                        className="px-4 py-2 rounded-2xl bg-white/5 border border-white/10 text-slate-300 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all cursor-pointer"
                       >
                         Selecionar Logo do PC
-                      </button>
+                      </label>
                       <button
                         type="button"
                         onClick={() => setSefazData(prev => ({ ...prev, logoUrl: '' }))}
