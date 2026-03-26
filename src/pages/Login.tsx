@@ -131,15 +131,6 @@ export default function Login() {
                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/80">Criptografia Militar AES-256</span>
             </div>
             <div className="flex flex-col items-center gap-2">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  {isRegistering ? 'Já possui acesso?' : 'Não possui acesso?'} 
-                  <button 
-                    onClick={() => setIsRegistering(!isRegistering)}
-                    className="ml-2 text-primary hover:text-primary/80 transition-colors underline underline-offset-4"
-                  >
-                    {isRegistering ? 'Login' : 'Solicitar Registro'}
-                  </button>
-                </p>
                 <button className="text-[9px] font-black text-slate-600 uppercase tracking-widest hover:text-slate-400 transition-colors">
                   Esqueci minha senha
                 </button>
