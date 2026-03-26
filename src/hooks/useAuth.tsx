@@ -15,6 +15,7 @@ interface AuthContextType {
     role?: 'sub-user' | 'admin',
     permissions?: string[]
   ) => Promise<{ id: string; email: string }>;
+  updateUserMetadata: (updates: Record<string, any>) => Promise<void>;
   isLoading: boolean;
   canAccess: (permission: string) => boolean;
 }
@@ -241,6 +242,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateUserMetadata = async (updates: Record<string, any>) => {
+    if (!user) throw new Error('Autenticação necessária');
+    setIsLoading(true);
+    try {
+      if (hasSupabase) {
+        const { error } = await supabase.auth.updateUser({ data: updates });
+        if (error) throw error;
+      }
+      setUser(prev => {
+        if (!prev) return prev;
+        const next = {
+          ...prev,
+          name: typeof updates.name === 'string' ? updates.name : prev.name,
+          avatar: typeof updates.avatar === 'string' ? updates.avatar : prev.avatar,
+          permissions: Array.isArray(updates.permissions) ? updates.permissions : prev.permissions,
+          adminId: updates.adminId !== undefined ? updates.adminId : prev.adminId,
+          role: typeof updates.role === 'string' ? updates.role : prev.role,
+        } as User;
+        localStorage.setItem('whatch_pro_user', JSON.stringify(next));
+        return next;
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const canAccess = (permission: string) => {
     if (!user) return false;
     
@@ -264,7 +291,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, createSubUser, canAccess, isLoading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, createSubUser, updateUserMetadata, canAccess, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   User, 
   Bell, 
@@ -44,7 +44,7 @@ function cn(...inputs: ClassValue[]) {
 type SettingsSection = 'profile' | 'notifications' | 'security' | 'appearance' | 'reports' | 'integrations' | 'receita' | 'system'
 
 export default function Settings() {
-  const { user, canAccess } = useAuth()
+  const { user, canAccess, updateUserMetadata } = useAuth()
   const { theme, setTheme, accentColor, setAccentColor } = useAppearance()
   const { syncAllClientsWithAsaas } = useData()
   const { configuracaoSEFAZ, certificados, salvarConfiguracaoSEFAZ, carregarCertificado, removerCertificado, ativarCertificado } = useSEFAZ()
@@ -52,6 +52,8 @@ export default function Settings() {
   const [isSaved, setIsSaved] = useState(false)
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
   const [configuringIntegration, setConfiguringIntegration] = useState<string | null>(null)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
   
   // SEFAZ State
   const [sefazData, setSefazData] = useState<Partial<ConfiguracaoSEFAZ>>(configuracaoSEFAZ || {
@@ -264,13 +266,61 @@ export default function Settings() {
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center gap-8 p-6 glass rounded-3xl border border-white/10">
               <div className="relative group">
-                <img src={`https://ui-avatars.com/api/?name=${user?.name}&background=random`} alt={user?.name} className="w-24 h-24 rounded-3xl shadow-2xl border-2 border-primary/20 group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute inset-0 bg-primary/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                <img src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.name}&background=random`} alt={user?.name} className="w-24 h-24 rounded-3xl shadow-2xl border-2 border-primary/20 group-hover:scale-105 transition-transform duration-500" />
+                <div onClick={() => avatarInputRef.current?.click()} className="absolute inset-0 bg-primary/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
                     <Smartphone size={24} className="text-white" />
                 </div>
               </div>
               <div>
-                <button className="bg-primary text-white px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all glow-primary shadow-lg shadow-primary/20">
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file || !user) return
+                    if (file.size > 2 * 1024 * 1024) {
+                      alert('Arquivo muito grande. Máximo: 2MB.')
+                      e.target.value = ''
+                      return
+                    }
+                    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+                      alert('Formato inválido. Use JPG ou PNG.')
+                      e.target.value = ''
+                      return
+                    }
+
+                    setIsUploadingAvatar(true)
+                    try {
+                      const ext = file.name.split('.').pop()?.toLowerCase() || (file.type === 'image/png' ? 'png' : 'jpg')
+                      const safeExt = ['png', 'jpg', 'jpeg'].includes(ext) ? ext : 'jpg'
+                      const filePath = `${user.id}/${Date.now()}.${safeExt}`
+                      const { error: uploadError } = await supabase
+                        .storage
+                        .from('avatars')
+                        .upload(filePath, file, { upsert: true, contentType: file.type })
+                      if (uploadError) throw uploadError
+
+                      const { data: publicData } = supabase.storage.from('avatars').getPublicUrl(filePath)
+                      const publicUrl = `${publicData.publicUrl}?v=${Date.now()}`
+
+                      await updateUserMetadata({ avatar: publicUrl })
+                      alert('Foto de perfil atualizada com sucesso!')
+                    } catch (err: any) {
+                      alert('Erro ao enviar a foto. Verifique o bucket \"avatars\" no Supabase Storage e as permissões.')
+                      console.error(err)
+                    } finally {
+                      setIsUploadingAvatar(false)
+                      e.target.value = ''
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                  className="bg-primary text-white px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all glow-primary shadow-lg shadow-primary/20 disabled:opacity-50"
+                >
                   Alterar Foto
                 </button>
                 <p className="text-[10px] font-bold text-slate-500 mt-3 uppercase tracking-tighter">Formatos: JPG, PNG. Máximo: 2MB.</p>
