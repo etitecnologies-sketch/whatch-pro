@@ -3,16 +3,23 @@ import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useData } from '../hooks/useData'
 
+import { useAuth } from '../hooks/useAuth'
+import { useNavigate } from 'react-router-dom'
+
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
 export default function Dashboard() {
   const { clients, employees, projects, transactions, products } = useData()
+  const { user } = useAuth()
+  const navigate = useNavigate()
 
   const totalRevenue = transactions
     .filter(t => t.type === 'income')
     .reduce((acc, t) => acc + t.amount, 0)
+
+  const isAdmin = user?.role === 'admin' || user?.email === 'mestre@whatchpro.com'
 
   const totalCosts = products.reduce((acc, p) => acc + ((p.costPrice || 0) * (p.quantity || 0)), 0)
   const totalStockValue = products.reduce((acc, p) => acc + ((p.price || 0) * (p.quantity || 0)), 0)
@@ -113,9 +120,14 @@ export default function Dashboard() {
           <div className="glass rounded-3xl p-8 shadow-xl border border-white/40 dark:border-slate-800/50">
             <h3 className="text-xl font-black text-slate-900 dark:text-white mb-6">Ações Inteligentes</h3>
             <div className="grid grid-cols-1 gap-4">
-              <QuickActionItem icon={Plus} label="Cadastrar Cliente" desc="Novo registro no banco" color="blue" />
-              <QuickActionItem icon={FileText} label="Gerar Relatório" desc="PDF Mensal de vendas" color="purple" />
-              <QuickActionItem icon={LayoutPanelTop} label="Novo Projeto" desc="Workspace colaborativo" color="orange" />
+              <QuickActionItem icon={Plus} label="Cadastrar Cliente" desc="Novo registro no banco" color="blue" onClick={() => navigate('/clients')} />
+              <QuickActionItem icon={FileText} label="Gerar Relatório" desc="PDF Mensal de vendas" color="purple" onClick={() => navigate('/financial')} />
+              {isAdmin && (
+                <>
+                  <QuickActionItem icon={Users} label="Gerenciar Equipe" desc="Controle de usuários" color="orange" onClick={() => navigate('/users')} />
+                  <QuickActionItem icon={RefreshCw} label="Verificar Updates" desc="Whatch Pro OS v1.3.0" color="primary" onClick={() => navigate('/settings')} />
+                </>
+              )}
             </div>
           </div>
 
@@ -218,15 +230,19 @@ function StatCard({ icon: Icon, label, value, change, trend }: StatCardProps) {
   )
 }
 
-function QuickActionItem({ icon: Icon, label, desc, color }: { icon: any, label: string, desc: string, color: string }) {
+function QuickActionItem({ icon: Icon, label, desc, color, onClick }: { icon: any, label: string, desc: string, color: string, onClick?: () => void }) {
   const colors: Record<string, string> = {
     blue: 'text-blue-500 bg-blue-500/10',
     purple: 'text-purple-500 bg-purple-500/10',
     orange: 'text-orange-500 bg-orange-500/10',
+    primary: 'text-primary bg-primary/10',
   }
 
   return (
-    <button className="flex items-center gap-4 p-4 rounded-2xl border border-white/40 dark:border-slate-800/50 hover:border-primary/40 hover:bg-primary/5 transition-all group text-left">
+    <button 
+      onClick={onClick}
+      className="flex items-center gap-4 p-4 rounded-2xl border border-white/40 dark:border-slate-800/50 hover:border-primary/40 hover:bg-primary/5 transition-all group text-left w-full"
+    >
       <div className={cn("p-3 rounded-xl shrink-0 group-hover:scale-110 transition-transform", colors[color])}>
         <Icon size={20} />
       </div>
