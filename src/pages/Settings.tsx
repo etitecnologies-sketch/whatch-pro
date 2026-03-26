@@ -977,7 +977,7 @@ export default function Settings() {
                     </div>
                     <div>
                         <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-widest leading-none mb-2">Whatch Pro OS</h4>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Versão Atual: <span className="text-primary">v1.3.0-stable</span></p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Versão Atual: <span className="text-primary">v1.4.0-security</span></p>
                     </div>
                 </div>
                 <button 
@@ -996,6 +996,17 @@ export default function Settings() {
                     Histórico de Atualizações
                 </h4>
                 <div className="space-y-4">
+                    <ChangelogItem 
+                        version="v1.4.0-security" 
+                        date="Hoje" 
+                        changes={[
+                            "Implementação de Multi-tenancy real (Isolamento de dados por Administrador)",
+                            "Criação e Autenticação de usuários via Supabase Auth + Resend SMTP",
+                            "Remoção de senhas hardcoded e link de auto-registro",
+                            "Atualização visual do Dashboard com Ações Inteligentes para Admins",
+                            "Melhoria na rolagem do formulário de permissões de sub-usuários"
+                        ]}
+                    />
                     <ChangelogItem 
                         version="PRÓXIMO PASSO" 
                         date="ROADMAP 2026" 
