@@ -253,8 +253,8 @@ export default function Settings() {
   ].filter(section => {
     if (section.id === 'profile' || section.id === 'notifications') return true;
     if (section.id === 'appearance') return canAccess('appearance');
-    if (section.id === 'receita') return user?.role === 'admin' || user?.id === 'master-id-000';
-    return user?.role === 'admin' || user?.id === 'master-id-000';
+    if (section.id === 'receita') return user?.role === 'admin' || user?.email === 'mestre@whatchpro.com';
+    return user?.role === 'admin' || user?.email === 'mestre@whatchpro.com';
   })
 
   const renderSection = () => {

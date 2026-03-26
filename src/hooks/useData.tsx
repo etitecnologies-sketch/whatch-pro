@@ -27,7 +27,7 @@ export function useData() {
   // This ensures isolation between different companies/admins.
   const getTenantId = useCallback(() => {
     if (!user) return null;
-    if (user.id === 'master-id-000') return 'master';
+    if (user.email === 'mestre@whatchpro.com') return 'master';
     return user.adminId || user.id;
   }, [user]);
 
@@ -76,7 +76,7 @@ export function useData() {
 
       // Strict isolation: Filter by admin_id (Tenant ID)
       // Master user sees everything (no filter)
-      if (user.id !== 'master-id-000' && tenantId) {
+      if (user.email !== 'mestre@whatchpro.com' && tenantId) {
         queryClients = queryClients.eq('admin_id', tenantId);
         queryEmployees = queryEmployees.eq('admin_id', tenantId);
         queryProducts = queryProducts.eq('admin_id', tenantId);
@@ -310,7 +310,7 @@ export function useData() {
     }
 
     // 2. Sync with Cloud (Supabase) if available
-    if (hasSupabase && user && user.id !== 'master-id-000') {
+    if (hasSupabase && user && user.email !== 'mestre@whatchpro.com') {
       try {
         // Map frontend camelCase to database snake_case
         const mapToDB = (item: any) => {

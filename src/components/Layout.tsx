@@ -93,7 +93,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     return canAccess(item.id);
   })
 
-  if (user?.role === 'admin' || user?.id === 'master-id-000') {
+  if (user?.role === 'admin' || user?.email === 'mestre@whatchpro.com') {
     sidebarItems.push({ id: 'users', icon: ShieldCheck, label: 'Usuários' })
   }
 
