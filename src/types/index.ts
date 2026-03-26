@@ -35,9 +35,19 @@ export interface Client {
   userId: string;
   adminId?: string; // Tenant ID
   name: string;
-  cnpj: string;
+  cnpj: string; // CPF ou CNPJ
+  rgIe?: string; // RG ou Inscrição Estadual
   email: string;
   phone: string;
+  cep?: string;
+  address?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  birthDate?: string;
+  notes?: string;
   status: 'active' | 'inactive';
   createdAt: string;
   asaasId?: string; // ID do cliente no Asaas

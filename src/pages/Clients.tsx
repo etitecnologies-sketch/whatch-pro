@@ -20,8 +20,18 @@ export default function Clients() {
   const [formData, setFormData] = useState({
     name: '',
     cnpj: '',
+    rgIe: '',
     email: '',
-    phone: ''
+    phone: '',
+    cep: '',
+    address: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+    birthDate: '',
+    notes: ''
   })
 
   const filteredClients = clients.filter(client => 
@@ -64,12 +74,37 @@ export default function Clients() {
       setFormData({
         name: client.name,
         cnpj: client.cnpj,
+        rgIe: client.rgIe || '',
         email: client.email,
-        phone: client.phone
+        phone: client.phone,
+        cep: client.cep || '',
+        address: client.address || '',
+        number: client.number || '',
+        complement: client.complement || '',
+        neighborhood: client.neighborhood || '',
+        city: client.city || '',
+        state: client.state || '',
+        birthDate: client.birthDate || '',
+        notes: client.notes || ''
       })
     } else {
       setEditingClient(null)
-      setFormData({ name: '', cnpj: '', email: '', phone: '' })
+      setFormData({ 
+        name: '', 
+        cnpj: '', 
+        rgIe: '',
+        email: '', 
+        phone: '',
+        cep: '',
+        address: '',
+        number: '',
+        complement: '',
+        neighborhood: '',
+        city: '',
+        state: '',
+        birthDate: '',
+        notes: ''
+      })
     }
     setIsModalOpen(true)
   }
@@ -218,13 +253,34 @@ export default function Clients() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Telefone</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">RG / Inscrição Estadual</label>
+                  <input 
+                    type="text" 
+                    value={formData.rgIe}
+                    onChange={e => setFormData({ ...formData, rgIe: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                    placeholder="Opcional"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Telefone / WhatsApp</label>
                   <input 
                     type="text" 
                     value={formData.phone}
                     onChange={e => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
                     placeholder="(00) 00000-0000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Data de Nascimento</label>
+                  <input 
+                    type="date" 
+                    value={formData.birthDate}
+                    onChange={e => setFormData({ ...formData, birthDate: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
                   />
                 </div>
               </div>
@@ -236,6 +292,101 @@ export default function Clients() {
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
                   className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
                   placeholder="cliente@email.com"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-white/10 space-y-4">
+                <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest">Endereço</h3>
+                
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2 col-span-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">CEP</label>
+                    <input 
+                      type="text" 
+                      value={formData.cep}
+                      onChange={e => setFormData({ ...formData, cep: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                      placeholder="00000-000"
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Endereço (Rua/Av)</label>
+                    <input 
+                      type="text" 
+                      value={formData.address}
+                      onChange={e => setFormData({ ...formData, address: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                      placeholder="Nome da rua"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2 col-span-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Número</label>
+                    <input 
+                      type="text" 
+                      value={formData.number}
+                      onChange={e => setFormData({ ...formData, number: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                      placeholder="123"
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Complemento</label>
+                    <input 
+                      type="text" 
+                      value={formData.complement}
+                      onChange={e => setFormData({ ...formData, complement: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                      placeholder="Apto, Sala, etc (Opcional)"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2 col-span-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Bairro</label>
+                    <input 
+                      type="text" 
+                      value={formData.neighborhood}
+                      onChange={e => setFormData({ ...formData, neighborhood: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                      placeholder="Bairro"
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Cidade</label>
+                    <input 
+                      type="text" 
+                      value={formData.city}
+                      onChange={e => setFormData({ ...formData, city: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                      placeholder="Cidade"
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">UF</label>
+                    <input 
+                      type="text" 
+                      value={formData.state}
+                      onChange={e => setFormData({ ...formData, state: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                      placeholder="SP"
+                      maxLength={2}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/10 space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Observações Internas</label>
+                <textarea 
+                  rows={3}
+                  value={formData.notes}
+                  onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner resize-none"
+                  placeholder="Informações adicionais sobre o cliente..."
                 />
               </div>
             </div>

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, Edit2, Trash2, FileText, X, ChevronDown, Check, ShoppingCart, User as UserIcon, Printer, Send, DollarSign } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, FileText, X, ChevronDown, Check, ShoppingCart, User as UserIcon, Printer, Send, DollarSign, CheckCircle2, XCircle } from 'lucide-react'
 import type { Quotation, QuotationItem, Client, Product } from '../types'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -45,6 +45,117 @@ export default function Quotations() {
       const updated = quotations.filter(q => q.id !== id)
       saveData('quotations', updated)
     }
+  }
+
+  const handleUpdateStatus = (id: string, status: Quotation['status']) => {
+    const updated = quotations.map(q => q.id === id ? { ...q, status } : q)
+    saveData('quotations', updated)
+  }
+
+  const handlePrintPDF = (quotation: Quotation) => {
+    const client = clients.find(c => c.id === quotation.clientId)
+    const content = `
+      <html>
+        <head>
+          <title>Orçamento ${quotation.id}</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #1e293b; }
+            h1 { color: #0f172a; margin-bottom: 5px; }
+            .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+            .info-grid { display: flex; justify-content: space-between; margin-bottom: 40px; }
+            .info-box { background: #f8fafc; padding: 20px; border-radius: 12px; width: 45%; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+            th { text-align: left; padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-size: 12px; text-transform: uppercase; }
+            td { padding: 15px 12px; border-bottom: 1px solid #e2e8f0; }
+            .total { text-align: right; font-size: 24px; font-weight: bold; color: #0f172a; }
+            .notes { background: #f8fafc; padding: 20px; border-radius: 12px; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Orçamento ${quotation.id}</h1>
+            <p>Data: ${new Date(quotation.createdAt).toLocaleDateString('pt-BR')} | Validade: ${new Date(quotation.validUntil).toLocaleDateString('pt-BR')}</p>
+          </div>
+          
+          <div class="info-grid">
+            <div class="info-box">
+              <strong>Para:</strong><br/>
+              ${client?.name || 'Cliente'}<br/>
+              ${client?.email || ''}<br/>
+              ${client?.phone || ''}
+            </div>
+            <div class="info-box">
+              <strong>Empresa:</strong><br/>
+              Whatch Pro OS<br/>
+              ${user?.email || ''}
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qtd</th>
+                <th>Preço Unit.</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${quotation.items.map(item => `
+                <tr>
+                  <td>${item.name}</td>
+                  <td>${item.quantity}</td>
+                  <td>${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}</td>
+                  <td>${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.total)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="total">
+            Total: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quotation.totalAmount)}
+          </div>
+
+          ${quotation.notes ? `
+            <div class="notes">
+              <strong>Observações:</strong><br/>
+              ${quotation.notes}
+            </div>
+          ` : ''}
+        </body>
+      </html>
+    `
+
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(content)
+      printWindow.document.close()
+      printWindow.focus()
+      // setTimeout to allow fonts/styles to load before printing
+      setTimeout(() => {
+        printWindow.print()
+        printWindow.close()
+      }, 250)
+    }
+  }
+
+  const handleSendWhatsApp = (quotation: Quotation) => {
+    const client = clients.find(c => c.id === quotation.clientId)
+    if (!client || !client.phone) {
+      alert('Cliente não possui telefone cadastrado.')
+      return
+    }
+
+    const itemsText = quotation.items.map(i => `- ${i.quantity}x ${i.name}`).join('\n')
+    const total = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quotation.totalAmount)
+    
+    const message = `Olá, ${client.name}!\n\nAqui está o seu orçamento (Ref: ${quotation.id}):\n\n*Itens:*\n${itemsText}\n\n*Valor Total:* ${total}\n*Válido até:* ${new Date(quotation.validUntil).toLocaleDateString('pt-BR')}\n\nQualquer dúvida, estamos à disposição!`
+    
+    const phone = client.phone.replace(/\D/g, '')
+    const whatsappUrl = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`
+    
+    window.open(whatsappUrl, '_blank')
+    handleUpdateStatus(quotation.id, 'sent')
   }
 
   const handleAddItem = (product: Product) => {
@@ -226,8 +337,17 @@ export default function Quotations() {
                     </td>
                     <td className="px-8 py-6">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="p-2 text-slate-400 hover:text-primary transition-colors" title="Imprimir"><Printer size={18} /></button>
-                        <button className="p-2 text-slate-400 hover:text-primary transition-colors" title="Enviar"><Send size={18} /></button>
+                        {q.status === 'draft' && (
+                          <button onClick={() => handleUpdateStatus(q.id, 'sent')} className="p-2 text-slate-400 hover:text-blue-500 transition-colors" title="Marcar como Enviado"><Send size={18} /></button>
+                        )}
+                        {q.status === 'sent' && (
+                          <>
+                            <button onClick={() => handleUpdateStatus(q.id, 'approved')} className="p-2 text-slate-400 hover:text-green-500 transition-colors" title="Aprovar"><CheckCircle2 size={18} /></button>
+                            <button onClick={() => handleUpdateStatus(q.id, 'rejected')} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Rejeitar"><XCircle size={18} /></button>
+                          </>
+                        )}
+                        <button onClick={() => handlePrintPDF(q)} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Imprimir PDF"><Printer size={18} /></button>
+                        <button onClick={() => handleSendWhatsApp(q)} className="p-2 text-slate-400 hover:text-green-500 transition-colors" title="Enviar WhatsApp"><Send size={18} /></button>
                         <button onClick={() => openModal(q)} className="p-2 text-slate-400 hover:text-blue-500 transition-colors" title="Editar"><Edit2 size={18} /></button>
                         <button onClick={() => handleDelete(q.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Excluir"><Trash2 size={18} /></button>
                       </div>
