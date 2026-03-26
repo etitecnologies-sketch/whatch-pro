@@ -384,7 +384,7 @@ export default function Quotations() {
                       {q.validUntil}
                     </td>
                     <td className="px-8 py-6">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         {q.status === 'draft' && (
                           <button onClick={() => handleUpdateStatus(q.id, 'sent')} className="p-2 text-slate-400 hover:text-blue-500 transition-colors" title="Marcar como Enviado"><Send size={18} /></button>
                         )}
