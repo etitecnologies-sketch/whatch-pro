@@ -279,8 +279,6 @@ export default function Finance() {
     } finally {
       setGerando(false);
     }
-    setSelectedDocument(newDoc)
-    setIsFiscalModalOpen(true)
   }
 
   return (
@@ -405,25 +403,25 @@ export default function Finance() {
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-2">
                       <button 
-                        onClick={() => handleGenerateFiscal(t, 'NF-e')}
+                        onClick={() => handleEmitFiscalDocument(t, 'NF-e')}
                         disabled={gerando}
                         className="px-3 py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all flex items-center gap-1.5 group/btn shadow-inner disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Emitir NF-e (Nota Fiscal Eletrônica)"
                       >
-                        {gerando ? <div className="animate-spin" size={14}>⟳</div> : <ShieldCheck size={14} className="group-hover/btn:scale-110 transition-transform" />}
+                        {gerando ? <div className="animate-spin">⟳</div> : <ShieldCheck size={14} className="group-hover/btn:scale-110 transition-transform" />}
                         {gerando ? 'Processando...' : 'NF-e'}
                       </button>
                       <button 
-                        onClick={() => handleGenerateFiscal(t, 'NFC-e')}
+                        onClick={() => handleEmitFiscalDocument(t, 'NFC-e')}
                         disabled={gerando}
-                        className="px-3 py-1.5 bg-purple-500/10 text-purple-500 border border-purple-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all flex item gaps-1.5 group/btn shadow-inner disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3 py-1.5 bg-purple-500/10 text-purple-500 border border-purple-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all flex items-center gap-1.5 group/btn shadow-inner disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Emitir NFC-e (Consumidor)"
                       >
                         {gerando ? <div className="animate-spin">⟳</div> : <Zap size={14} className="group-hover/btn:scale-110 transition-transform" />}
                         {gerando ? '...' : 'NFC-e'}
                       </button>
                       <button 
-                        onClick={() => handleGenerateFiscal(t, 'Cupom')}
+                        onClick={() => handleEmitFiscalDocument(t, 'Cupom')}
                         disabled={gerando}
                         className="px-3 py-1.5 bg-blue-500/10 text-blue-500 border border-blue-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all flex items-center gap-1.5 group/btn shadow-inner disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Gerar Cupom Fiscal"
