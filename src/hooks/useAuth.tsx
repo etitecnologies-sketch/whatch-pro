@@ -13,7 +13,8 @@ interface AuthContextType {
     email: string,
     password: string,
     role?: 'sub-user' | 'admin',
-    permissions?: string[]
+    permissions?: string[],
+    targetTenantId?: string
   ) => Promise<{ id: string; email: string }>;
   updateUserMetadata: (updates: Record<string, any>) => Promise<void>;
   isLoading: boolean;
@@ -138,29 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       if (hasSupabase) {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { 
-            data: { 
-              name, 
-              role: 'sub-user', 
-              avatar: `https://ui-avatars.com/api/?name=${name}&background=random` 
-            } 
-          }
-        });
-        if (error) throw error;
-        if (data.user) {
-          const newUser: User = {
-            id: data.user.id,
-            name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Usuário',
-            email: data.user.email || '',
-            role: data.user.user_metadata?.role || 'sub-user',
-            avatar: data.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${data.user.email}&background=random`
-          };
-          setUser(newUser);
-          localStorage.setItem('whatch_pro_user', JSON.stringify(newUser));
-        }
+        throw new Error('Cadastro público desativado. Solicite ao administrador da sua empresa para criar seu acesso.')
       } else {
         await new Promise(resolve => setTimeout(resolve, 800));
         const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]');
@@ -194,7 +173,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string,
     role: 'sub-user' | 'admin' = 'sub-user',
-    permissions?: string[]
+    permissions?: string[],
+    targetTenantId?: string
   ) => {
     if (!hasSupabase) {
       throw new Error('Supabase não configurado. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Vercel.');
@@ -204,11 +184,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isMaster = user.email === 'mestre@whatchpro.com';
     const isAdmin = user.role === 'admin';
 
-    if (role === 'admin' && !isMaster) {
-      throw new Error('Apenas o usuário mestre pode criar administradores.');
+    if (!(isMaster || isAdmin)) {
+      throw new Error('Apenas administradores podem criar usuários.')
     }
-    if (role === 'sub-user' && !(isMaster || isAdmin)) {
-      throw new Error('Apenas administradores podem criar sub-usuários.');
+
+    const currentTenantId = user.adminId || user.id
+
+    const resolveAdminId = () => {
+      if (role === 'sub-user') {
+        if (isMaster) {
+          if (!targetTenantId) throw new Error('Selecione a empresa (admin master) para vincular este sub-usuário.')
+          return targetTenantId
+        }
+        return currentTenantId
+      }
+
+      if (role === 'admin') {
+        if (isMaster) {
+          return targetTenantId || undefined
+        }
+        return currentTenantId
+      }
+
+      return undefined
     }
 
     setIsLoading(true);
@@ -224,10 +222,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data: {
             name,
             role,
-            adminId: role === 'sub-user' ? user.id : undefined,
-            permissions: role === 'sub-user'
-              ? (permissions || ['clients', 'inventory', 'quotations', 'appearance'])
-              : undefined,
+            adminId: resolveAdminId(),
+            permissions: role === 'sub-user' ? (permissions && permissions.length > 0 ? permissions : ['clients', 'inventory', 'quotations']) : undefined,
             avatar: `https://ui-avatars.com/api/?name=${name}&background=random`
           }
         }
@@ -281,11 +277,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Support for legacy "user" role (if any)
     if ((user as any).role === 'user') return true;
     
-    // Sub-users with no permissions array yet (legacy support)
-    if (user.role === 'sub-user' && !user.permissions) {
-        return true;
-    }
-
     // Standard permission check for sub-users
     return user.permissions?.includes(permission) || false;
   };

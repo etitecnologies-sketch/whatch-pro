@@ -13,6 +13,7 @@ function cn(...inputs: ClassValue[]) {
 export default function Users() {
   const { user: currentUser, createSubUser } = useAuth()
   const { transactions } = useData()
+  const [allUsers, setAllUsers] = useState<User[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -26,7 +27,8 @@ export default function Users() {
     email: '',
     role: 'sub-user' as 'sub-user' | 'admin',
     password: '',
-    permissions: [] as string[]
+    permissions: [] as string[],
+    tenantId: ''
   })
 
   const availablePermissions = [
@@ -43,26 +45,27 @@ export default function Users() {
     { id: 'documents', label: 'Documentos' },
   ]
 
+  const isMaster = currentUser?.email === 'mestre@whatchpro.com'
+  const currentTenantId = currentUser ? (currentUser.adminId || currentUser.id) : null
+
+  const filterVisibleUsers = (list: User[], cu: User | null) => {
+    if (!cu) return []
+    if (cu.email === 'mestre@whatchpro.com') return list
+    if (cu.role === 'admin') {
+      const tId = cu.adminId || cu.id
+      return list.filter(u => u.id === tId || u.adminId === tId)
+    }
+    return list.filter(u => u.id === cu.id)
+  }
+
+  const companyAdmins = allUsers
+    .filter(u => u.role === 'admin' && u.email !== 'mestre@whatchpro.com' && !u.adminId)
+    .sort((a, b) => a.name.localeCompare(b.name))
+
   useEffect(() => {
     const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
-    
-    // Strict isolation filtering:
-    const filteredByAdmin = allUsers.filter(u => {
-      // 1. Master sees all Admins (to manage them)
-      if (currentUser?.email === 'mestre@whatchpro.com') {
-          return u.role === 'admin' || u.email === 'mestre@whatchpro.com';
-      }
-      
-      // 2. Admin sees themselves and their own sub-users
-      if (currentUser?.role === 'admin') {
-          return u.id === currentUser.id || u.adminId === currentUser.id;
-      }
-
-      // 3. Sub-users shouldn't even be here (access check is done at top of component), 
-      // but for safety, they only see themselves
-      return u.id === currentUser?.id;
-    })
-    setUsers(filteredByAdmin)
+    setAllUsers(allUsers)
+    setUsers(filterVisibleUsers(allUsers, currentUser))
   }, [currentUser])
 
   const filteredUsers = users.filter(user => 
@@ -98,39 +101,50 @@ export default function Users() {
 
     try {
       if (editingUser) {
-        const { password: _password, ...safeFormData } = formData
+        const { password: _password, tenantId, ...safeFormData } = formData
+        const adminId = (safeFormData.role === 'admin' ? (tenantId || undefined) : (tenantId || undefined))
+        const permissions = safeFormData.role === 'sub-user' ? safeFormData.permissions : undefined
+        const updates = { ...safeFormData, adminId, permissions }
         const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
-        const updatedAllUsers = allUsers.map(u => u.id === editingUser.id ? { ...u, ...safeFormData } : u)
+        const updatedAllUsers = allUsers.map(u => u.id === editingUser.id ? { ...u, ...updates } : u)
         localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedAllUsers))
-        setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...safeFormData } : u))
+        setAllUsers(updatedAllUsers)
+        setUsers(filterVisibleUsers(updatedAllUsers, currentUser))
       } else {
+        if (formData.role === 'sub-user' && isMaster && !formData.tenantId) {
+          alert('Selecione a empresa (admin master) para vincular este sub-usuário.')
+          return
+        }
+
         const createdUser = await createSubUser(
           formData.name, 
           formData.email, 
           formData.password, 
           formData.role,
-          formData.permissions
+          formData.permissions,
+          isMaster ? (formData.tenantId || undefined) : (currentTenantId || undefined)
         )
 
         if (createdUser) {
-          const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
+          const allUsersList: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
+          const adminId =
+            formData.role === 'sub-user'
+              ? (isMaster ? formData.tenantId : (currentTenantId || ''))
+              : (isMaster ? (formData.tenantId || undefined) : (currentTenantId || undefined))
+
           const newUser: User = {
             id: createdUser.id,
             name: formData.name,
             email: formData.email,
             role: formData.role,
-            adminId: formData.role === 'sub-user' ? currentUser.id : undefined,
+            adminId: adminId || undefined,
             permissions: formData.role === 'sub-user' ? formData.permissions : undefined,
             avatar: `https://ui-avatars.com/api/?name=${formData.name}&background=random`
           }
-          localStorage.setItem('whatch_pro_all_users', JSON.stringify([...allUsers, newUser]))
-          
-          const filteredByAdmin = [...allUsers, newUser].filter(u => 
-            u.id === currentUser.id || 
-            u.adminId === currentUser.id ||
-            currentUser.email === 'mestre@whatchpro.com'
-          )
-          setUsers(filteredByAdmin)
+          const merged = [...allUsersList, newUser]
+          localStorage.setItem('whatch_pro_all_users', JSON.stringify(merged))
+          setAllUsers(merged)
+          setUsers(filterVisibleUsers(merged, currentUser))
           alert(`✅ Usuário criado com sucesso! O acesso já está liberado.`)
         }
       }
@@ -151,7 +165,8 @@ export default function Users() {
         email: user.email,
         role: user.role as 'sub-user' | 'admin',
         password: '',
-        permissions: user.permissions || []
+        permissions: user.permissions || [],
+        tenantId: user.adminId || ''
       })
     } else {
       setEditingUser(null)
@@ -160,7 +175,8 @@ export default function Users() {
         email: '', 
         role: 'sub-user', 
         password: '',
-        permissions: ['pdv', 'clients', 'inventory'] // Default permissions for new users
+        permissions: ['pdv', 'clients', 'inventory'],
+        tenantId: isMaster ? (companyAdmins[0]?.id || '') : (currentTenantId || '')
       })
     }
     setIsModalOpen(true)
@@ -195,7 +211,7 @@ export default function Users() {
     return { daily, monthly, yearly, totalSales: userTransactions.length }
   }
 
-  if (currentUser?.role !== 'admin') {
+  if (!(currentUser?.role === 'admin' || currentUser?.email === 'mestre@whatchpro.com')) {
     return (
         <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
             <Shield size={64} className="text-red-500/20" />
@@ -374,13 +390,32 @@ export default function Users() {
                         className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner appearance-none"
                     >
                         <option value="sub-user">Sub-usuário (Limitado)</option>
-                        {currentUser?.email === 'mestre@whatchpro.com' && (
-                            <option value="admin">Administrador (Master)</option>
+                        {(currentUser?.email === 'mestre@whatchpro.com' || currentUser?.role === 'admin') && (
+                          <option value="admin">Administrador (Completo)</option>
                         )}
                     </select>
                   </div>
                 </div>
               </div>
+
+              {isMaster && !editingUser && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Empresa (Admin Master)</label>
+                  <div className="relative group">
+                    <ShieldCheck size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors pointer-events-none" />
+                    <select
+                      value={formData.tenantId}
+                      onChange={e => setFormData({ ...formData, tenantId: e.target.value })}
+                      className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner appearance-none"
+                    >
+                      {formData.role === 'admin' && <option value="">Nova Empresa (Admin Master)</option>}
+                      {companyAdmins.map(a => (
+                        <option key={a.id} value={a.id}>{a.name} ({a.email})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
 
               {formData.role === 'sub-user' && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
