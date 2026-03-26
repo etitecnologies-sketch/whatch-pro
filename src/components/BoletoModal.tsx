@@ -69,7 +69,7 @@ export default function BoletoModal({ isOpen, onClose, transaction }: BoletoModa
       const content = contentRef.current
       const dataUrl = await toPng(content, {
         quality: 1,
-        pixelRatio: 2,
+        pixelRatio: 4,
         backgroundColor: '#ffffff',
       })
       
@@ -133,7 +133,11 @@ export default function BoletoModal({ isOpen, onClose, transaction }: BoletoModa
         </div>
 
         {/* Boleto Content */}
-        <div ref={contentRef} className="flex-1 overflow-y-auto p-10 bg-white">
+        <div
+          ref={contentRef}
+          className="flex-1 overflow-y-auto p-10 bg-white"
+          style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale', textRendering: 'geometricPrecision' }}
+        >
           {isGenerating ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[400px] space-y-4 text-center">
               <Loader2 size={48} className="text-primary animate-spin" />

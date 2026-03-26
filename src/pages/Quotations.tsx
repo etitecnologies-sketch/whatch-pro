@@ -103,7 +103,7 @@ export default function Quotations() {
       setIsExporting(true)
       const dataUrl = await toPng(pdfRef.current, {
         quality: 1,
-        pixelRatio: 2,
+        pixelRatio: 4,
         backgroundColor: '#ffffff',
         width: 794,
         height: Math.max(1123, pdfRef.current.scrollHeight),
@@ -255,8 +255,12 @@ export default function Quotations() {
 
   return (
     <div className="space-y-10 pb-20">
-      <div className="absolute top-0 left-0 w-[794px] min-h-[1123px] bg-white text-slate-900 -z-50 opacity-0 pointer-events-none" aria-hidden="true">
-        <div ref={pdfRef} className="p-10 w-full h-full">
+      <div className="absolute -left-[99999px] top-0 w-[794px] min-h-[1123px] bg-white text-slate-900 pointer-events-none" aria-hidden="true">
+        <div
+          ref={pdfRef}
+          className="p-10 w-full h-full"
+          style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale', textRendering: 'geometricPrecision' }}
+        >
           {(() => {
             const quotation = pdfQuotation
             if (!quotation) return null

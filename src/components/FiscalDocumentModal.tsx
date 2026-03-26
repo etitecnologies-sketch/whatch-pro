@@ -35,7 +35,7 @@ export default function FiscalDocumentModal({ isOpen, onClose, transaction, docu
       const content = contentRef.current
       const dataUrl = await toPng(content, {
         quality: 1,
-        pixelRatio: 2,
+        pixelRatio: 4,
         backgroundColor: '#020617', // Match dark theme slate-950
       })
       
@@ -66,6 +66,7 @@ export default function FiscalDocumentModal({ isOpen, onClose, transaction, docu
       <div 
         ref={contentRef}
         className="relative w-full max-w-4xl glass rounded-[40px] shadow-2xl border border-white/20 overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col bg-slate-950 print:max-h-none print:shadow-none print:border-none print:rounded-none"
+        style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale', textRendering: 'geometricPrecision' }}
       >
         {/* Header */}
         <div className="p-8 border-b border-white/10 flex items-center justify-between shrink-0 bg-white/5 print:bg-white print:border-slate-200">
