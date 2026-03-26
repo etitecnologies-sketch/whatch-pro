@@ -124,7 +124,7 @@ export default function Users() {
             currentUser.email === 'mestre@whatchpro.com'
           )
           setUsers(filteredByAdmin)
-          alert(`✅ Usuário criado! Um e-mail de confirmação foi enviado para ${createdUser.email}`)
+          alert(`✅ Usuário criado com sucesso! O acesso já está liberado.`)
         }
       }
       setIsModalOpen(false)
