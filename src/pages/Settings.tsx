@@ -54,6 +54,7 @@ export default function Settings() {
   const [configuringIntegration, setConfiguringIntegration] = useState<string | null>(null)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement>(null)
+  const logoInputRef = useRef<HTMLInputElement>(null)
   
   // SEFAZ State
   const [sefazData, setSefazData] = useState<Partial<ConfiguracaoSEFAZ>>(configuracaoSEFAZ || {
@@ -85,6 +86,27 @@ export default function Settings() {
   useEffect(() => {
     if (configuracaoSEFAZ) setSefazData(configuracaoSEFAZ)
   }, [configuracaoSEFAZ])
+
+  const handleLogoFileChange = async (file: File | null) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      alert('Selecione um arquivo de imagem (PNG/JPG).')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      alert('A logo deve ter no máximo 2MB.')
+      return
+    }
+
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result || ''))
+      reader.onerror = () => reject(new Error('Erro ao ler arquivo'))
+      reader.readAsDataURL(file)
+    })
+
+    setSefazData(prev => ({ ...prev, logoUrl: dataUrl }))
+  }
 
   const [certFile, setCertFile] = useState<File | null>(null)
   const [certPass, setCertFilePass] = useState('')
@@ -913,6 +935,29 @@ export default function Settings() {
                       placeholder="https://.../logo.png" 
                       className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner" 
                     />
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      className="hidden"
+                      onChange={(e) => void handleLogoFileChange(e.target.files?.[0] || null)}
+                    />
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => logoInputRef.current?.click()}
+                        className="px-4 py-2 rounded-2xl bg-white/5 border border-white/10 text-slate-300 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                      >
+                        Selecionar Logo do PC
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSefazData(prev => ({ ...prev, logoUrl: '' }))}
+                        className="px-4 py-2 rounded-2xl bg-white/5 border border-white/10 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                      >
+                        Limpar
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1144,12 +1189,6 @@ export default function Settings() {
               >
                 <Save size={18} />
                 Salvar Todas as Configurações Fiscais
-              </button>
-              <button 
-                className="px-8 py-4 bg-white/5 border border-white/10 text-slate-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-2"
-              >
-                <Download size={18} />
-                Gerar SPED EFD (Mês Atual)
               </button>
             </div>
           </div>
