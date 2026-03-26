@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Client, Employee, Product, Project, Transaction, FiscalDocument, Quotation } from '../types';
+import type { Client, Employee, Product, Project, Transaction, FiscalDocument, Quotation, ServiceOrder } from '../types';
 import { useAuth } from './useAuth';
 import { supabase } from '../lib/supabase';
 import { AsaasService } from '../lib/asaas';
@@ -319,6 +319,7 @@ export function useData() {
         case 'transactions': setTransactions(data); break;
         case 'fiscal_documents': setFiscalDocuments(data); break;
         case 'quotations': setQuotations(data); break;
+        case 'service_orders': setServiceOrders(data); break;
     }
 
     // 2. Sync with Cloud (Supabase) if available
@@ -514,12 +515,30 @@ export function useData() {
     });
   }, [saveData]);
 
+  const addTransaction = useCallback((t: Omit<Transaction, 'id' | 'userId' | 'adminId'>) => {
+    if (!user || !tenantId) return;
+    const newTransaction: Transaction = {
+      id: crypto.randomUUID(),
+      userId: user.id,
+      adminId: tenantId,
+      ...t
+    };
+    void saveData('transactions', [...transactions, newTransaction]);
+  }, [saveData, tenantId, transactions, user]);
+
+  const updateProduct = useCallback((updatedProduct: Product) => {
+    const updated = products.map(p => p.id === updatedProduct.id ? updatedProduct : p);
+    void saveData('products', updated);
+  }, [products, saveData]);
+
   return {
     clients, setClients: (data: Client[]) => saveData('clients', data),
     employees, setEmployees: (data: Employee[]) => saveData('employees', data),
     products, setProducts: (data: Product[]) => saveData('products', data),
+    updateProduct,
     projects, setProjects: (data: Project[]) => saveData('projects', data),
     transactions, setTransactions: (data: Transaction[]) => saveData('transactions', data),
+    addTransaction,
     isLoading,
     isSyncing,
     lastSync,

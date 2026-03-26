@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, GripHorizontal, Phone, Mail, Calendar, MessageSquare, Building2, User } from 'lucide-react'
+import { Plus, GripHorizontal, Phone, Mail, Calendar, MessageSquare, Building2, User, X } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useData } from '../hooks/useData'
