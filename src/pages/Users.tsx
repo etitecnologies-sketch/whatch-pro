@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit2, Trash2, User as UserIcon, Shield, ShieldCheck, X, Mail, Lock, UserCheck, Check, Loader2 } from 'lucide-react'
-import type { User } from '../types'
+import { Plus, Search, Edit2, Trash2, User as UserIcon, Shield, ShieldCheck, X, Mail, Lock, UserCheck, Check, Loader2, TrendingUp, DollarSign, Calendar } from 'lucide-react'
+import type { User, Transaction } from '../types'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useAuth } from '../hooks/useAuth'
+import { useData } from '../hooks/useData'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -11,10 +12,13 @@ function cn(...inputs: ClassValue[]) {
 
 export default function Users() {
   const { user: currentUser, createSubUser } = useAuth()
+  const { transactions } = useData()
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isReportsModalOpen, setIsReportsModalOpen] = useState(false)
+  const [selectedUserForReports, setSelectedUserForReports] = useState<User | null>(null)
   const [editingUser, setEditingUser] = useState<User | null>(null)
 
   const [formData, setFormData] = useState({
@@ -156,10 +160,39 @@ export default function Users() {
         email: '', 
         role: 'sub-user', 
         password: '',
-        permissions: ['clients', 'inventory', 'quotations', 'appearance'] // Default permissions
+        permissions: ['pdv', 'clients', 'inventory'] // Default permissions for new users
       })
     }
     setIsModalOpen(true)
+  }
+
+  const openReportsModal = (user: User) => {
+    setSelectedUserForReports(user)
+    setIsReportsModalOpen(true)
+  }
+
+  const calculateUserStats = (userId: string) => {
+    const userTransactions = transactions.filter(t => t.userId === userId && t.type === 'income' && t.status === 'completed')
+    
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    const startOfYear = new Date(today.getFullYear(), 0, 1)
+
+    const daily = userTransactions
+      .filter(t => new Date(t.date) >= today)
+      .reduce((acc, t) => acc + t.amount, 0)
+
+    const monthly = userTransactions
+      .filter(t => new Date(t.date) >= startOfMonth)
+      .reduce((acc, t) => acc + t.amount, 0)
+
+    const yearly = userTransactions
+      .filter(t => new Date(t.date) >= startOfYear)
+      .reduce((acc, t) => acc + t.amount, 0)
+
+    return { daily, monthly, yearly, totalSales: userTransactions.length }
   }
 
   if (currentUser?.role !== 'admin') {
@@ -245,6 +278,13 @@ export default function Users() {
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => openReportsModal(u)}
+                        className="p-3 text-slate-500 hover:text-green-500 hover:bg-green-500/10 rounded-2xl transition-all border border-transparent hover:border-green-500/20"
+                        title="Ver Faturamento e Vendas"
+                      >
+                        <TrendingUp size={18} />
+                      </button>
                       <button 
                         onClick={() => openModal(u)}
                         className="p-3 text-slate-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-2xl transition-all border border-transparent hover:border-blue-500/20"
@@ -386,6 +426,76 @@ export default function Users() {
                 {isLoading && <Loader2 className="animate-spin" size={18} />}
                 {editingUser ? 'Salvar Alterações' : 'Criar Usuário'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Relatórios do Usuário Modal */}
+      {isReportsModalOpen && selectedUserForReports && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={() => setIsReportsModalOpen(false)} />
+          <div className="relative w-full max-w-2xl glass rounded-[40px] shadow-2xl border border-white/20 overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-8 border-b border-white/10 flex items-center justify-between bg-white/5">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tightest flex items-center gap-3">
+                  <TrendingUp className="text-primary" />
+                  Relatório de <span className="text-primary">Vendas</span>
+                </h2>
+                <p className="text-sm font-bold text-slate-500 mt-1">Desempenho de {selectedUserForReports.name}</p>
+              </div>
+              <button onClick={() => setIsReportsModalOpen(false)} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-all">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              {(() => {
+                const stats = calculateUserStats(selectedUserForReports.id);
+                return (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-slate-200 dark:border-slate-800">
+                        <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-4">
+                          <DollarSign size={20} />
+                        </div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Vendas Hoje</p>
+                        <p className="text-2xl font-black text-white">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.daily)}
+                        </p>
+                      </div>
+
+                      <div className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-slate-200 dark:border-slate-800">
+                        <div className="w-10 h-10 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500 mb-4">
+                          <Calendar size={20} />
+                        </div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Faturamento Mensal</p>
+                        <p className="text-2xl font-black text-white">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.monthly)}
+                        </p>
+                      </div>
+
+                      <div className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-slate-200 dark:border-slate-800">
+                        <div className="w-10 h-10 bg-green-500/10 rounded-2xl flex items-center justify-center text-green-500 mb-4">
+                          <TrendingUp size={20} />
+                        </div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Faturamento Anual</p>
+                        <p className="text-2xl font-black text-white">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.yearly)}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-8 p-6 bg-primary/5 border border-primary/10 rounded-3xl flex items-center justify-between">
+                        <div>
+                            <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Total de Vendas Realizadas</p>
+                            <p className="text-sm font-medium text-slate-400">Quantidade de transações concluídas por este usuário.</p>
+                        </div>
+                        <div className="text-3xl font-black text-primary">{stats.totalSales}</div>
+                    </div>
+                  </>
+                )
+              })()}
             </div>
           </div>
         </div>

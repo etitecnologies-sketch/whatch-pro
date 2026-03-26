@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react'
 import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, Search, User, CheckCircle2 } from 'lucide-react'
 import { useData } from '../hooks/useData'
+import { useAuth } from '../hooks/useAuth'
 import { Product } from '../types'
 
 export default function PDV() {
   const { products, clients, addTransaction, updateProduct } = useData()
+  const { user } = useAuth()
   const [cart, setCart] = useState<Array<{ product: Product; quantity: number }>>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedClient, setSelectedClient] = useState<string>('')
@@ -83,8 +85,9 @@ export default function PDV() {
       type: 'income',
       category: 'Vendas',
       date: new Date().toISOString(),
-      status: 'completed'
-    })
+      status: 'completed',
+      userId: user?.id // Registra quem fez a venda
+    } as any)
 
     // 2. Update stock
     cart.forEach(item => {
