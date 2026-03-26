@@ -5,7 +5,7 @@ import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useData } from '../hooks/useData'
 import { useAuth } from '../hooks/useAuth'
-import html2canvas from 'html2canvas'
+import { toPng } from 'html-to-image'
 import { jsPDF } from 'jspdf'
 
 function cn(...inputs: ClassValue[]) {
@@ -92,6 +92,7 @@ export default function Quotations() {
     setPdfQuotation(quotation)
     await new Promise(requestAnimationFrame)
     await new Promise(requestAnimationFrame)
+    await new Promise(resolve => setTimeout(resolve, 100))
 
     if (!pdfRef.current) {
       alert('Não foi possível gerar o PDF (componente não carregou). Atualize a página e tente novamente.')
@@ -100,20 +101,21 @@ export default function Quotations() {
 
     try {
       setIsExporting(true)
-      const canvas = await html2canvas(pdfRef.current, {
-        scale: 2,
-        useCORS: true,
+      const dataUrl = await toPng(pdfRef.current, {
+        quality: 1,
+        pixelRatio: 2,
         backgroundColor: '#ffffff',
-        logging: false,
       })
 
-      const imgData = canvas.toDataURL('image/png')
+      const width = pdfRef.current.offsetWidth
+      const height = pdfRef.current.offsetHeight
+
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'px',
-        format: [canvas.width / 2, canvas.height / 2]
+        format: [width, height]
       })
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2)
+      pdf.addImage(dataUrl, 'PNG', 0, 0, width, height)
       pdf.save(`Orcamento_${quotation.id}.pdf`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)

@@ -3,7 +3,7 @@ import type { Transaction, FiscalDocument } from '../types'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useRef, useState } from 'react'
-import html2canvas from 'html2canvas'
+import { toPng } from 'html-to-image'
 import { jsPDF } from 'jspdf'
 
 function cn(...inputs: ClassValue[]) {
@@ -33,21 +33,22 @@ export default function FiscalDocumentModal({ isOpen, onClose, transaction, docu
     try {
       setIsExporting(true)
       const content = contentRef.current
-      const canvas = await html2canvas(content, {
-        scale: 2,
-        useCORS: true,
+      const dataUrl = await toPng(content, {
+        quality: 1,
+        pixelRatio: 2,
         backgroundColor: '#020617', // Match dark theme slate-950
-        logging: false,
       })
       
-      const imgData = canvas.toDataURL('image/png')
+      const width = content.offsetWidth
+      const height = content.offsetHeight
+
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'px',
-        format: [canvas.width / 2, canvas.height / 2]
+        format: [width, height]
       })
       
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2)
+      pdf.addImage(dataUrl, 'PNG', 0, 0, width, height)
       pdf.save(`Fiscal_${document.number}_${document.type}.pdf`)
     } catch (error) {
       console.error('Erro ao gerar PDF:', error)

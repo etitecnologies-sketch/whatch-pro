@@ -3,7 +3,7 @@ import type { Transaction } from '../types'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useRef, useState, useEffect } from 'react'
-import html2canvas from 'html2canvas'
+import { toPng } from 'html-to-image'
 import { jsPDF } from 'jspdf'
 import { useData } from '../hooks/useData'
 
@@ -67,21 +67,22 @@ export default function BoletoModal({ isOpen, onClose, transaction }: BoletoModa
     try {
       setIsExporting(true)
       const content = contentRef.current
-      const canvas = await html2canvas(content, {
-        scale: 2,
-        useCORS: true,
+      const dataUrl = await toPng(content, {
+        quality: 1,
+        pixelRatio: 2,
         backgroundColor: '#ffffff',
-        logging: false,
       })
       
-      const imgData = canvas.toDataURL('image/png')
+      const width = content.offsetWidth
+      const height = content.offsetHeight
+
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'px',
-        format: [canvas.width / 2, canvas.height / 2]
+        format: [width, height]
       })
       
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2)
+      pdf.addImage(dataUrl, 'PNG', 0, 0, width, height)
       pdf.save(`Boleto_${transaction.id}.pdf`)
     } catch (error) {
       console.error('Erro ao gerar PDF:', error)
