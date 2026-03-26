@@ -43,6 +43,7 @@ export default function ServiceOrders() {
   })
 
   const defaultStatuses = useMemo(() => ([
+    'Aberto',
     'Pendente',
     'Em Análise',
     'Aguardando Aprovação',
@@ -133,7 +134,7 @@ export default function ServiceOrders() {
         equipment: '',
         problem: '',
         diagnosis: '',
-        status: defaultStatuses[0] || 'Pendente',
+        status: statusOptions.includes('Aberto') ? 'Aberto' : (statusOptions[0] || 'Pendente'),
         laborCost: 0,
         items: []
       })
@@ -209,6 +210,7 @@ export default function ServiceOrders() {
 
   const getStatusColor = (status: string) => {
     const s = normalizeStatus(status)
+    if (s === 'Aberto') return 'text-sky-500 bg-sky-500/10 border-sky-500/20'
     if (s === 'Pendente') return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20'
     if (s === 'Em Análise') return 'text-blue-500 bg-blue-500/10 border-blue-500/20'
     if (s === 'Aguardando Aprovação') return 'text-orange-500 bg-orange-500/10 border-orange-500/20'
@@ -759,9 +761,10 @@ export default function ServiceOrders() {
                       type="number"
                       min="0"
                       step="0.01"
-                      value={formData.laborCost}
+                      value={formData.laborCost || ''}
                       onChange={(e) => setFormData({ ...formData, laborCost: parseFloat(e.target.value) || 0 })}
                       className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                      placeholder="0"
                     />
                   </div>
                 </div>
