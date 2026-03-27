@@ -277,7 +277,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         if (secondDetails.status === 401 && (lower2.includes('invalid jwt') || lower2.includes('jwt expired'))) {
           await supabase.auth.signOut()
-          throw new Error('Sessão inválida. Faça login novamente.')
+          throw new Error(`Sessão inválida (HTTP 401). Detalhes: ${secondDetails.text || msg2 || 'Unauthorized'}`)
         }
         console.error('Edge function error:', second.error)
         throw new Error(secondDetails.status ? `HTTP ${secondDetails.status}: ${secondDetails.text || msg2}` : (secondDetails.text || msg2 || 'Erro ao criar usuário no Supabase'))
