@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { User } from '../types';
 import { supabase } from '../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -189,44 +190,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Apenas administradores podem criar usuários.')
     }
 
+    const currentTenantId = user.adminId || user.id
+
+    const resolveAdminId = () => {
+      if (role === 'sub-user') {
+        if (isMaster) {
+          if (!targetTenantId) throw new Error('Selecione a empresa (admin master) para vincular este sub-usuário.')
+          return targetTenantId
+        }
+        return currentTenantId
+      }
+
+      if (role === 'admin') {
+        if (isMaster) {
+          return targetTenantId || undefined
+        }
+        return currentTenantId
+      }
+
+      return undefined
+    }
+
     setIsLoading(true);
     try {
-      // Create new user with Supabase directly on the client instead of Edge Function
-      const tempSupabase = createClient(supabaseUrl!, supabaseKey!, {
-        auth: { persistSession: false }
-      });
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
 
-      const { data, error } = await tempSupabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            role,
-            adminId: resolveAdminId(),
-            permissions: role === 'sub-user' ? (permissions && permissions.length > 0 ? permissions : ['clients', 'inventory', 'quotations']) : undefined,
-            avatar: `https://ui-avatars.com/api/?name=${name}&background=random`
-          }
-        }
-      });
+      const { data, error } = await supabase.functions.invoke('user-admin', {
+        body: {
+          action: 'create',
+          name,
+          email,
+          password,
+          role,
+          permissions,
+          targetTenantId: isMaster ? (targetTenantId || undefined) : undefined,
+        },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined
+      })
 
-      if (error) throw error;
-      if (!data.user?.id || !data.user?.email) throw new Error('Erro ao criar usuário no Supabase.');
-
-      // Also persist to localStorage for safe fallback listing
-      const allUsersList: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
-      const newUser: User = {
-        id: data.user.id,
-        name,
-        email: data.user.email,
-        role,
-        adminId: resolveAdminId(),
-        permissions: role === 'sub-user' ? permissions : undefined,
-        avatar: `https://ui-avatars.com/api/?name=${name}&background=random`
-      }
-      localStorage.setItem('whatch_pro_all_users', JSON.stringify([...allUsersList, newUser]))
-
-      return { id: data.user.id, email: data.user.email };
+      if (error) throw error
+      if (!data?.user?.id || !data?.user?.email) throw new Error('Erro ao criar usuário no Supabase.')
+      return { id: data.user.id, email: data.user.email }
     } finally {
       setIsLoading(false);
     }
