@@ -258,6 +258,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const firstDetails = await readErr(first.error)
       const msg = String((first.error as any)?.message || '')
       const lower = (firstDetails.text || msg).toLowerCase()
+      if (firstDetails.status === 401 && lower.includes('protected header')) {
+        throw new Error('Supabase: token inválido. Verifique VITE_SUPABASE_ANON_KEY no Vercel (use a anon key sem "Bearer" e sem aspas).')
+      }
       const shouldRetry = firstDetails.status === 401 && (lower.includes('invalid jwt') || lower.includes('jwt expired'))
       if (shouldRetry) {
         await supabase.auth.refreshSession()
@@ -269,6 +272,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const secondDetails = await readErr(second.error)
         const msg2 = String((second.error as any)?.message || '')
         const lower2 = (secondDetails.text || msg2).toLowerCase()
+        if (secondDetails.status === 401 && lower2.includes('protected header')) {
+          throw new Error('Supabase: token inválido. Verifique VITE_SUPABASE_ANON_KEY no Vercel (use a anon key sem "Bearer" e sem aspas).')
+        }
         if (secondDetails.status === 401 && (lower2.includes('invalid jwt') || lower2.includes('jwt expired'))) {
           await supabase.auth.signOut()
           throw new Error('Sessão inválida. Faça login novamente.')
