@@ -89,39 +89,12 @@ export default function Users() {
     if (!currentUser) return
     setIsLoading(true)
     try {
-      if (hasSupabase) {
-        const { data, error } = await supabase.functions.invoke('user-admin', {
-          body: { action: 'list' }
-        })
-        if (error) throw error
-        const list = Array.isArray(data?.users) ? (data.users as User[]) : []
-        setAllUsers(list)
-        setUsers(filterVisibleUsers(list, currentUser))
-        return
-      }
-
+      // Revert to localStorage listing logic as primary fallback for safety
       const localUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
       setAllUsers(localUsers)
       setUsers(filterVisibleUsers(localUsers, currentUser))
     } catch (e: any) {
-      if (hasSupabase) {
-        let details =
-          e?.context?.body?.error ||
-          e?.context?.body?.message
-
-        if (!details && e?.context?.response) {
-          try {
-            const text = await e.context.response.clone().text()
-            details = text
-          } catch {}
-        }
-
-        if (!details) details = e?.message || String(e)
-        alert(`Erro ao carregar usuários do Supabase. Abra Supabase → Edge Functions → user-admin → Logs.\n\nDetalhes: ${details}`)
-      }
-      const localUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
-      setAllUsers(localUsers)
-      setUsers(filterVisibleUsers(localUsers, currentUser))
+      console.error('Erro ao carregar usuários locais', e)
     } finally {
       setIsLoading(false)
     }
@@ -144,14 +117,7 @@ export default function Users() {
     if (confirm('Tem certeza que deseja excluir este usuário?')) {
       void (async () => {
         try {
-          if (hasSupabase) {
-            const { error } = await supabase.functions.invoke('user-admin', {
-              body: { action: 'delete', userId: id }
-            })
-            if (error) throw error
-            await loadUsers()
-            return
-          }
+          // Revert to localStorage delete logic as primary for safety
           const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
           const updatedAllUsers = allUsers.filter(u => u.id !== id)
           localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedAllUsers))
@@ -186,19 +152,12 @@ export default function Users() {
         const permissions = safeFormData.role === 'sub-user' ? safeFormData.permissions : undefined
         const updates = { name: safeFormData.name, role: safeFormData.role, adminId, permissions }
 
-        if (hasSupabase) {
-          const payload: any = { action: 'update', userId: editingUser.id, updates }
-          if (formData.password) payload.password = formData.password
-          const { error } = await supabase.functions.invoke('user-admin', { body: payload })
-          if (error) throw error
-          await loadUsers()
-        } else {
-          const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
-          const updatedAllUsers = allUsers.map(u => u.id === editingUser.id ? { ...u, ...updates } : u)
-          localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedAllUsers))
-          setAllUsers(updatedAllUsers)
-          setUsers(filterVisibleUsers(updatedAllUsers, currentUser))
-        }
+        // Revert to localStorage update logic
+        const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
+        const updatedAllUsers = allUsers.map(u => u.id === editingUser.id ? { ...u, ...updates } : u)
+        localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedAllUsers))
+        setAllUsers(updatedAllUsers)
+        setUsers(filterVisibleUsers(updatedAllUsers, currentUser))
       } else {
         if (formData.role === 'sub-user' && isMaster && !formData.tenantId) {
           alert('Selecione a empresa (admin master) para vincular este sub-usuário.')
