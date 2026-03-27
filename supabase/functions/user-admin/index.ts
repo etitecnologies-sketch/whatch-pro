@@ -78,9 +78,18 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    if (!supabaseUrl || !serviceRoleKey) {
+      return new Response(JSON.stringify({ error: "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in Edge Function secrets" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
+
     const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      supabaseUrl,
+      serviceRoleKey,
     )
 
     const authHeader = req.headers.get("Authorization")
@@ -115,6 +124,7 @@ serve(async (req) => {
 
     const payload = await req.json().catch(() => ({} as any))
     const action = payload?.action as string | undefined
+    console.log(JSON.stringify({ action, requester: requester.email }))
 
     if (action === "list") {
       const all = await listAllUsers(supabaseAdmin)
@@ -329,6 +339,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     })
   } catch (error: any) {
+    console.error(error)
     return new Response(JSON.stringify({ error: error?.message || "Erro" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
