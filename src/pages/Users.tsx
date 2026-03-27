@@ -6,6 +6,7 @@ import { twMerge } from 'tailwind-merge'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
 import { supabase } from '../lib/supabase'
+import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError } from '@supabase/supabase-js'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -57,6 +58,27 @@ export default function Users() {
   const userAdminUrl = `${(supabaseUrl || '').replace(/\/$/, '')}/functions/v1/user-admin`
 
   const callUserAdmin = async (body: any) => {
+    const readErr = async (err: unknown) => {
+      if (err instanceof FunctionsHttpError) {
+        const status = err.context?.status
+        const cloned = err.context?.clone?.()
+        try {
+          const json = cloned ? await cloned.json() : null
+          return { status, text: json ? JSON.stringify(json) : '' }
+        } catch {
+          try {
+            const text = cloned ? await cloned.text() : ''
+            return { status, text }
+          } catch {
+            return { status, text: String((err as any)?.message || '') }
+          }
+        }
+      }
+      if (err instanceof FunctionsRelayError) return { status: undefined, text: err.message }
+      if (err instanceof FunctionsFetchError) return { status: undefined, text: err.message }
+      return { status: undefined, text: String((err as any)?.message || err || '') }
+    }
+
     const invokeOnce = async () => {
       const { data, error } = await supabase.functions.invoke('user-admin', { body })
       return { data, error }
@@ -65,23 +87,27 @@ export default function Users() {
     const first = await invokeOnce()
     if (!first.error) return first.data
 
+    const firstDetails = await readErr(first.error)
     const msg = String((first.error as any)?.message || '')
-    const shouldRetry = msg.includes('Invalid JWT') || msg.includes('JWT expired') || msg.includes('invalid JWT')
+    const lower = (firstDetails.text || msg).toLowerCase()
+    const shouldRetry = firstDetails.status === 401 && (lower.includes('invalid jwt') || lower.includes('jwt expired'))
     if (shouldRetry) {
       await supabase.auth.refreshSession()
       const second = await invokeOnce()
       if (!second.error) return second.data
+      const secondDetails = await readErr(second.error)
       const msg2 = String((second.error as any)?.message || '')
-      if (msg2.includes('Invalid JWT') || msg2.includes('JWT expired') || msg2.includes('invalid JWT')) {
+      const lower2 = (secondDetails.text || msg2).toLowerCase()
+      if (secondDetails.status === 401 && (lower2.includes('invalid jwt') || lower2.includes('jwt expired'))) {
         await supabase.auth.signOut()
         throw new Error('Sessão inválida. Faça login novamente.')
       }
       console.error('Edge function error:', second.error)
-      throw new Error((second.error as any)?.message || 'Erro ao chamar função user-admin')
+      throw new Error(secondDetails.status ? `HTTP ${secondDetails.status}: ${secondDetails.text || msg2}` : (secondDetails.text || msg2 || 'Erro ao chamar função user-admin'))
     }
 
     console.error('Edge function error:', first.error)
-    throw new Error((first.error as any)?.message || 'Erro ao chamar função user-admin')
+    throw new Error(firstDetails.status ? `HTTP ${firstDetails.status}: ${firstDetails.text || msg}` : (firstDetails.text || msg || 'Erro ao chamar função user-admin'))
   }
 
   const buildUserIndex = (list: User[]) => new Map(list.map(u => [u.id, u]))

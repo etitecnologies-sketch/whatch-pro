@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { User } from '../types';
 import { supabase } from '../lib/supabase';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, FunctionsFetchError, FunctionsHttpError, FunctionsRelayError } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -213,6 +213,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setIsLoading(true);
     try {
+      const readErr = async (err: unknown) => {
+        if (err instanceof FunctionsHttpError) {
+          const status = err.context?.status
+          const cloned = err.context?.clone?.()
+          try {
+            const json = cloned ? await cloned.json() : null
+            return { status, text: json ? JSON.stringify(json) : '' }
+          } catch {
+            try {
+              const text = cloned ? await cloned.text() : ''
+              return { status, text }
+            } catch {
+              return { status, text: String((err as any)?.message || '') }
+            }
+          }
+        }
+        if (err instanceof FunctionsRelayError) return { status: undefined, text: err.message }
+        if (err instanceof FunctionsFetchError) return { status: undefined, text: err.message }
+        return { status: undefined, text: String((err as any)?.message || err || '') }
+      }
+
       const invokeOnce = async () => {
         const { data, error } = await supabase.functions.invoke('user-admin', {
           body: {
@@ -234,8 +255,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { id: first.data.user.id, email: first.data.user.email }
       }
 
+      const firstDetails = await readErr(first.error)
       const msg = String((first.error as any)?.message || '')
-      const shouldRetry = msg.includes('Invalid JWT') || msg.includes('JWT expired') || msg.includes('invalid JWT')
+      const lower = (firstDetails.text || msg).toLowerCase()
+      const shouldRetry = firstDetails.status === 401 && (lower.includes('invalid jwt') || lower.includes('jwt expired'))
       if (shouldRetry) {
         await supabase.auth.refreshSession()
         const second = await invokeOnce()
@@ -243,17 +266,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!second.data?.user?.id || !second.data?.user?.email) throw new Error('Erro ao criar usuário no Supabase.')
           return { id: second.data.user.id, email: second.data.user.email }
         }
+        const secondDetails = await readErr(second.error)
         const msg2 = String((second.error as any)?.message || '')
-        if (msg2.includes('Invalid JWT') || msg2.includes('JWT expired') || msg2.includes('invalid JWT')) {
+        const lower2 = (secondDetails.text || msg2).toLowerCase()
+        if (secondDetails.status === 401 && (lower2.includes('invalid jwt') || lower2.includes('jwt expired'))) {
           await supabase.auth.signOut()
           throw new Error('Sessão inválida. Faça login novamente.')
         }
         console.error('Edge function error:', second.error)
-        throw new Error((second.error as any)?.message || 'Erro ao criar usuário no Supabase')
+        throw new Error(secondDetails.status ? `HTTP ${secondDetails.status}: ${secondDetails.text || msg2}` : (secondDetails.text || msg2 || 'Erro ao criar usuário no Supabase'))
       }
 
       console.error('Edge function error:', first.error)
-      throw new Error((first.error as any)?.message || 'Erro ao criar usuário no Supabase')
+      throw new Error(firstDetails.status ? `HTTP ${firstDetails.status}: ${firstDetails.text || msg}` : (firstDetails.text || msg || 'Erro ao criar usuário no Supabase'))
     } finally {
       setIsLoading(false);
     }
