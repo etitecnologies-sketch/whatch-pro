@@ -57,24 +57,31 @@ export default function Users() {
   const userAdminUrl = `${(supabaseUrl || '').replace(/\/$/, '')}/functions/v1/user-admin`
 
   const callUserAdmin = async (body: any) => {
-    const { data: sessionData } = await supabase.auth.getSession()
-    const token = sessionData.session?.access_token
-
-    const res = await fetch(userAdminUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: supabaseKey,
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      } as any,
-      body: JSON.stringify(body),
-    })
-
-    const text = await res.text()
-    if (!res.ok) {
-      throw new Error(text || `HTTP ${res.status}`)
+    const invokeOnce = async () => {
+      const { data, error } = await supabase.functions.invoke('user-admin', { body })
+      return { data, error }
     }
-    return text ? JSON.parse(text) : {}
+
+    const first = await invokeOnce()
+    if (!first.error) return first.data
+
+    const msg = String((first.error as any)?.message || '')
+    const shouldRetry = msg.includes('Invalid JWT') || msg.includes('JWT expired') || msg.includes('invalid JWT')
+    if (shouldRetry) {
+      await supabase.auth.refreshSession()
+      const second = await invokeOnce()
+      if (!second.error) return second.data
+      const msg2 = String((second.error as any)?.message || '')
+      if (msg2.includes('Invalid JWT') || msg2.includes('JWT expired') || msg2.includes('invalid JWT')) {
+        await supabase.auth.signOut()
+        throw new Error('Sessão inválida. Faça login novamente.')
+      }
+      console.error('Edge function error:', second.error)
+      throw new Error((second.error as any)?.message || 'Erro ao chamar função user-admin')
+    }
+
+    console.error('Edge function error:', first.error)
+    throw new Error((first.error as any)?.message || 'Erro ao chamar função user-admin')
   }
 
   const buildUserIndex = (list: User[]) => new Map(list.map(u => [u.id, u]))

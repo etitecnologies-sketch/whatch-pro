@@ -213,32 +213,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setIsLoading(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const token = sessionData.session?.access_token
-      const userAdminUrl = `${(supabaseUrl || '').replace(/\/$/, '')}/functions/v1/user-admin`
-      const res = await fetch(userAdminUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: supabaseKey,
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        } as any,
-        body: JSON.stringify({
-          action: 'create',
-          name,
-          email,
-          password,
-          role,
-          permissions,
-          targetTenantId: isMaster ? (targetTenantId || undefined) : undefined,
-        }),
-      })
+      const invokeOnce = async () => {
+        const { data, error } = await supabase.functions.invoke('user-admin', {
+          body: {
+            action: 'create',
+            name,
+            email,
+            password,
+            role,
+            permissions,
+            targetTenantId: isMaster ? (targetTenantId || undefined) : undefined,
+          }
+        })
+        return { data, error }
+      }
 
-      const text = await res.text()
-      if (!res.ok) throw new Error(text || `HTTP ${res.status}`)
-      const data = text ? JSON.parse(text) : {}
-      if (!data?.user?.id || !data?.user?.email) throw new Error('Erro ao criar usuário no Supabase.')
-      return { id: data.user.id, email: data.user.email }
+      const first = await invokeOnce()
+      if (!first.error) {
+        if (!first.data?.user?.id || !first.data?.user?.email) throw new Error('Erro ao criar usuário no Supabase.')
+        return { id: first.data.user.id, email: first.data.user.email }
+      }
+
+      const msg = String((first.error as any)?.message || '')
+      const shouldRetry = msg.includes('Invalid JWT') || msg.includes('JWT expired') || msg.includes('invalid JWT')
+      if (shouldRetry) {
+        await supabase.auth.refreshSession()
+        const second = await invokeOnce()
+        if (!second.error) {
+          if (!second.data?.user?.id || !second.data?.user?.email) throw new Error('Erro ao criar usuário no Supabase.')
+          return { id: second.data.user.id, email: second.data.user.email }
+        }
+        const msg2 = String((second.error as any)?.message || '')
+        if (msg2.includes('Invalid JWT') || msg2.includes('JWT expired') || msg2.includes('invalid JWT')) {
+          await supabase.auth.signOut()
+          throw new Error('Sessão inválida. Faça login novamente.')
+        }
+        console.error('Edge function error:', second.error)
+        throw new Error((second.error as any)?.message || 'Erro ao criar usuário no Supabase')
+      }
+
+      console.error('Edge function error:', first.error)
+      throw new Error((first.error as any)?.message || 'Erro ao criar usuário no Supabase')
     } finally {
       setIsLoading(false);
     }
