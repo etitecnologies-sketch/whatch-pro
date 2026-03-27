@@ -54,6 +54,28 @@ export default function Users() {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const hasSupabase = !!supabaseUrl && !!supabaseKey && !supabaseUrl.includes('SUA_URL') && !supabaseUrl.includes('YOUR_URL')
+  const userAdminUrl = `${(supabaseUrl || '').replace(/\/$/, '')}/functions/v1/user-admin`
+
+  const callUserAdmin = async (body: any) => {
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+
+    const res = await fetch(userAdminUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: supabaseKey,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      } as any,
+      body: JSON.stringify(body),
+    })
+
+    const text = await res.text()
+    if (!res.ok) {
+      throw new Error(text || `HTTP ${res.status}`)
+    }
+    return text ? JSON.parse(text) : {}
+  }
 
   const buildUserIndex = (list: User[]) => new Map(list.map(u => [u.id, u]))
 
@@ -90,14 +112,7 @@ export default function Users() {
     setIsLoading(true)
     try {
       if (hasSupabase) {
-        const { data: sessionData } = await supabase.auth.getSession()
-        const token = sessionData.session?.access_token
-
-        const { data, error } = await supabase.functions.invoke('user-admin', {
-          body: { action: 'list' },
-          headers: token ? { Authorization: `Bearer ${token}`, apikey: supabaseKey } : { apikey: supabaseKey }
-        })
-        if (error) throw error
+        const data = await callUserAdmin({ action: 'list' })
         const list = Array.isArray(data?.users) ? (data.users as User[]) : []
         setAllUsers(list)
         setUsers(filterVisibleUsers(list, currentUser))
@@ -109,18 +124,7 @@ export default function Users() {
       setUsers(filterVisibleUsers(localUsers, currentUser))
     } catch (e: any) {
       if (hasSupabase) {
-        let details =
-          e?.context?.body?.error ||
-          e?.context?.body?.message
-
-        if (!details && e?.context?.response) {
-          try {
-            const text = await e.context.response.clone().text()
-            details = text
-          } catch {}
-        }
-
-        if (!details) details = e?.message || String(e)
+        const details = e?.message || String(e)
         alert(`Erro ao carregar usuários do Supabase.\n\nDetalhes: ${details}`)
       }
 
@@ -150,13 +154,7 @@ export default function Users() {
       void (async () => {
         try {
           if (hasSupabase) {
-            const { data: sessionData } = await supabase.auth.getSession()
-            const token = sessionData.session?.access_token
-            const { error } = await supabase.functions.invoke('user-admin', {
-              body: { action: 'delete', userId: id },
-              headers: token ? { Authorization: `Bearer ${token}`, apikey: supabaseKey } : { apikey: supabaseKey }
-            })
-            if (error) throw error
+            await callUserAdmin({ action: 'delete', userId: id })
             await loadUsers()
             return
           }
@@ -196,15 +194,9 @@ export default function Users() {
         const updates = { name: safeFormData.name, role: safeFormData.role, adminId, permissions }
 
         if (hasSupabase) {
-          const { data: sessionData } = await supabase.auth.getSession()
-          const token = sessionData.session?.access_token
           const payload: any = { action: 'update', userId: editingUser.id, updates }
           if (formData.password) payload.password = formData.password
-          const { error } = await supabase.functions.invoke('user-admin', {
-            body: payload,
-            headers: token ? { Authorization: `Bearer ${token}`, apikey: supabaseKey } : { apikey: supabaseKey }
-          })
-          if (error) throw error
+          await callUserAdmin(payload)
           await loadUsers()
         } else {
           const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')

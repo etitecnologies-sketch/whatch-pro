@@ -215,9 +215,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data: sessionData } = await supabase.auth.getSession()
       const token = sessionData.session?.access_token
-
-      const { data, error } = await supabase.functions.invoke('user-admin', {
-        body: {
+      const userAdminUrl = `${(supabaseUrl || '').replace(/\/$/, '')}/functions/v1/user-admin`
+      const res = await fetch(userAdminUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: supabaseKey,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        } as any,
+        body: JSON.stringify({
           action: 'create',
           name,
           email,
@@ -225,11 +231,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role,
           permissions,
           targetTenantId: isMaster ? (targetTenantId || undefined) : undefined,
-        },
-        headers: token ? { Authorization: `Bearer ${token}`, apikey: supabaseKey } : { apikey: supabaseKey }
+        }),
       })
 
-      if (error) throw error
+      const text = await res.text()
+      if (!res.ok) throw new Error(text || `HTTP ${res.status}`)
+      const data = text ? JSON.parse(text) : {}
       if (!data?.user?.id || !data?.user?.email) throw new Error('Erro ao criar usuário no Supabase.')
       return { id: data.user.id, email: data.user.email }
     } finally {
