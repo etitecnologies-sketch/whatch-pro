@@ -51,12 +51,28 @@ export default function Users() {
   const isMaster = currentUser?.email === 'mestre@whatchpro.com'
   const currentTenantId = currentUser ? (currentUser.adminId || currentUser.id) : null
 
+  const buildUserIndex = (list: User[]) => new Map(list.map(u => [u.id, u]))
+
+  const resolveRootTenantId = (u: User, idx: Map<string, User>) => {
+    if (u.role === 'admin' && !u.adminId) return u.id
+    let cur = u.adminId
+    const visited = new Set<string>()
+    while (cur && idx.has(cur) && !visited.has(cur)) {
+      visited.add(cur)
+      const parent = idx.get(cur)!
+      if (parent.role === 'admin' && !parent.adminId) return parent.id
+      cur = parent.adminId
+    }
+    return u.adminId || u.id
+  }
+
   const filterVisibleUsers = (list: User[], cu: User | null) => {
     if (!cu) return []
     if (cu.email === 'mestre@whatchpro.com') return list
     if (cu.role === 'admin') {
       const tId = cu.adminId || cu.id
-      return list.filter(u => u.id === tId || u.adminId === tId)
+      const idx = buildUserIndex(list)
+      return list.filter(u => resolveRootTenantId(u, idx) === tId)
     }
     return list.filter(u => u.id === cu.id)
   }
@@ -85,7 +101,8 @@ export default function Users() {
       const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
       const updatedAllUsers = allUsers.filter(u => u.id !== id)
       localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedAllUsers))
-      setUsers(users.filter(u => u.id !== id))
+      setAllUsers(updatedAllUsers)
+      setUsers(filterVisibleUsers(updatedAllUsers, currentUser))
     }
   }
 
@@ -161,6 +178,7 @@ export default function Users() {
   }
 
   const openModal = (user: User | null = null) => {
+    const idx = buildUserIndex(allUsers)
     if (user) {
       setEditingUser(user)
       setFormData({
@@ -169,7 +187,7 @@ export default function Users() {
         role: user.role as 'sub-user' | 'admin',
         password: '',
         permissions: user.permissions || [],
-        tenantId: user.adminId || ''
+        tenantId: user.adminId ? resolveRootTenantId(user, idx) : ''
       })
     } else {
       setEditingUser(null)
