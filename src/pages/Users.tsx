@@ -103,7 +103,15 @@ export default function Users() {
       const localUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
       setAllUsers(localUsers)
       setUsers(filterVisibleUsers(localUsers, currentUser))
-    } catch (e) {
+    } catch (e: any) {
+      if (hasSupabase) {
+        const details =
+          e?.context?.body?.error ||
+          e?.context?.body?.message ||
+          e?.message ||
+          String(e)
+        alert(`Erro ao carregar usuários do Supabase. Abra Supabase → Edge Functions → user-admin → Logs.\n\nDetalhes: ${details}`)
+      }
       const localUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
       setAllUsers(localUsers)
       setUsers(filterVisibleUsers(localUsers, currentUser))
