@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import type { User } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -190,51 +189,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Apenas administradores podem criar usuários.')
     }
 
-    const currentTenantId = user.adminId || user.id
-
-    const resolveAdminId = () => {
-      if (role === 'sub-user') {
-        if (isMaster) {
-          if (!targetTenantId) throw new Error('Selecione a empresa (admin master) para vincular este sub-usuário.')
-          return targetTenantId
-        }
-        return currentTenantId
-      }
-
-      if (role === 'admin') {
-        if (isMaster) {
-          return targetTenantId || undefined
-        }
-        return currentTenantId
-      }
-
-      return undefined
-    }
-
     setIsLoading(true);
     try {
-      const tempSupabase = createClient(supabaseUrl!, supabaseKey!, {
-        auth: { persistSession: false }
-      });
-
-      const { data, error } = await tempSupabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            role,
-            adminId: resolveAdminId(),
-            permissions: role === 'sub-user' ? (permissions && permissions.length > 0 ? permissions : ['clients', 'inventory', 'quotations']) : undefined,
-            avatar: `https://ui-avatars.com/api/?name=${name}&background=random`
-          }
+      const { data, error } = await supabase.functions.invoke('user-admin', {
+        body: {
+          action: 'create',
+          name,
+          email,
+          password,
+          role,
+          permissions,
+          targetTenantId: isMaster ? (targetTenantId || undefined) : undefined,
         }
-      });
+      })
 
-      if (error) throw error;
-      if (!data.user?.id || !data.user?.email) throw new Error('Erro ao criar usuário no Supabase.');
-
-      return { id: data.user.id, email: data.user.email };
+      if (error) throw error
+      if (!data?.user?.id || !data?.user?.email) throw new Error('Erro ao criar usuário no Supabase.')
+      return { id: data.user.id, email: data.user.email }
     } finally {
       setIsLoading(false);
     }

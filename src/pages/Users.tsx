@@ -5,6 +5,7 @@ import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
+import { supabase } from '../lib/supabase'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -50,6 +51,9 @@ export default function Users() {
 
   const isMaster = currentUser?.email === 'mestre@whatchpro.com'
   const currentTenantId = currentUser ? (currentUser.adminId || currentUser.id) : null
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const hasSupabase = !!supabaseUrl && !!supabaseKey && !supabaseUrl.includes('SUA_URL') && !supabaseUrl.includes('YOUR_URL')
 
   const buildUserIndex = (list: User[]) => new Map(list.map(u => [u.id, u]))
 
@@ -81,11 +85,36 @@ export default function Users() {
     .filter(u => u.role === 'admin' && u.email !== 'mestre@whatchpro.com' && !u.adminId)
     .sort((a, b) => a.name.localeCompare(b.name))
 
+  const loadUsers = async () => {
+    if (!currentUser) return
+    setIsLoading(true)
+    try {
+      if (hasSupabase) {
+        const { data, error } = await supabase.functions.invoke('user-admin', {
+          body: { action: 'list' }
+        })
+        if (error) throw error
+        const list = Array.isArray(data?.users) ? (data.users as User[]) : []
+        setAllUsers(list)
+        setUsers(filterVisibleUsers(list, currentUser))
+        return
+      }
+
+      const localUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
+      setAllUsers(localUsers)
+      setUsers(filterVisibleUsers(localUsers, currentUser))
+    } catch (e) {
+      const localUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
+      setAllUsers(localUsers)
+      setUsers(filterVisibleUsers(localUsers, currentUser))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
-    const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
-    setAllUsers(allUsers)
-    setUsers(filterVisibleUsers(allUsers, currentUser))
-  }, [currentUser])
+    void loadUsers()
+  }, [currentUser, hasSupabase])
 
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -98,11 +127,25 @@ export default function Users() {
         return
     }
     if (confirm('Tem certeza que deseja excluir este usuário?')) {
-      const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
-      const updatedAllUsers = allUsers.filter(u => u.id !== id)
-      localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedAllUsers))
-      setAllUsers(updatedAllUsers)
-      setUsers(filterVisibleUsers(updatedAllUsers, currentUser))
+      void (async () => {
+        try {
+          if (hasSupabase) {
+            const { error } = await supabase.functions.invoke('user-admin', {
+              body: { action: 'delete', userId: id }
+            })
+            if (error) throw error
+            await loadUsers()
+            return
+          }
+          const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
+          const updatedAllUsers = allUsers.filter(u => u.id !== id)
+          localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedAllUsers))
+          setAllUsers(updatedAllUsers)
+          setUsers(filterVisibleUsers(updatedAllUsers, currentUser))
+        } catch (error: any) {
+          alert(error?.message || 'Não foi possível excluir o usuário.')
+        }
+      })()
     }
   }
 
@@ -121,15 +164,26 @@ export default function Users() {
 
     try {
       if (editingUser) {
-        const { password: _password, tenantId, ...safeFormData } = formData
-        const adminId = (safeFormData.role === 'admin' ? (tenantId || undefined) : (tenantId || undefined))
+        const { tenantId, ...safeFormData } = formData
+        const adminId = safeFormData.role === 'admin'
+          ? (isMaster ? (tenantId || undefined) : (currentTenantId || undefined))
+          : (isMaster ? (tenantId || undefined) : (currentTenantId || undefined))
         const permissions = safeFormData.role === 'sub-user' ? safeFormData.permissions : undefined
-        const updates = { ...safeFormData, adminId, permissions }
-        const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
-        const updatedAllUsers = allUsers.map(u => u.id === editingUser.id ? { ...u, ...updates } : u)
-        localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedAllUsers))
-        setAllUsers(updatedAllUsers)
-        setUsers(filterVisibleUsers(updatedAllUsers, currentUser))
+        const updates = { name: safeFormData.name, role: safeFormData.role, adminId, permissions }
+
+        if (hasSupabase) {
+          const payload: any = { action: 'update', userId: editingUser.id, updates }
+          if (formData.password) payload.password = formData.password
+          const { error } = await supabase.functions.invoke('user-admin', { body: payload })
+          if (error) throw error
+          await loadUsers()
+        } else {
+          const allUsers: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
+          const updatedAllUsers = allUsers.map(u => u.id === editingUser.id ? { ...u, ...updates } : u)
+          localStorage.setItem('whatch_pro_all_users', JSON.stringify(updatedAllUsers))
+          setAllUsers(updatedAllUsers)
+          setUsers(filterVisibleUsers(updatedAllUsers, currentUser))
+        }
       } else {
         if (formData.role === 'sub-user' && isMaster && !formData.tenantId) {
           alert('Selecione a empresa (admin master) para vincular este sub-usuário.')
@@ -142,29 +196,11 @@ export default function Users() {
           formData.password, 
           formData.role,
           formData.permissions,
-          isMaster ? (formData.tenantId || undefined) : (currentTenantId || undefined)
+          isMaster ? (formData.tenantId || undefined) : undefined
         )
 
         if (createdUser) {
-          const allUsersList: User[] = JSON.parse(localStorage.getItem('whatch_pro_all_users') || '[]')
-          const adminId =
-            formData.role === 'sub-user'
-              ? (isMaster ? formData.tenantId : (currentTenantId || ''))
-              : (isMaster ? (formData.tenantId || undefined) : (currentTenantId || undefined))
-
-          const newUser: User = {
-            id: createdUser.id,
-            name: formData.name,
-            email: formData.email,
-            role: formData.role,
-            adminId: adminId || undefined,
-            permissions: formData.role === 'sub-user' ? formData.permissions : undefined,
-            avatar: `https://ui-avatars.com/api/?name=${formData.name}&background=random`
-          }
-          const merged = [...allUsersList, newUser]
-          localStorage.setItem('whatch_pro_all_users', JSON.stringify(merged))
-          setAllUsers(merged)
-          setUsers(filterVisibleUsers(merged, currentUser))
+          await loadUsers()
           alert(`✅ Usuário criado com sucesso! O acesso já está liberado.`)
         }
       }
