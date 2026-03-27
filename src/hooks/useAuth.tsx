@@ -226,7 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           permissions,
           targetTenantId: isMaster ? (targetTenantId || undefined) : undefined,
         },
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined
+        headers: token ? { Authorization: `Bearer ${token}`, apikey: supabaseKey } : { apikey: supabaseKey }
       })
 
       if (error) throw error

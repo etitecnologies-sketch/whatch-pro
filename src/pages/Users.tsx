@@ -95,7 +95,7 @@ export default function Users() {
 
         const { data, error } = await supabase.functions.invoke('user-admin', {
           body: { action: 'list' },
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined
+          headers: token ? { Authorization: `Bearer ${token}`, apikey: supabaseKey } : { apikey: supabaseKey }
         })
         if (error) throw error
         const list = Array.isArray(data?.users) ? (data.users as User[]) : []
@@ -154,7 +154,7 @@ export default function Users() {
             const token = sessionData.session?.access_token
             const { error } = await supabase.functions.invoke('user-admin', {
               body: { action: 'delete', userId: id },
-              headers: token ? { Authorization: `Bearer ${token}` } : undefined
+              headers: token ? { Authorization: `Bearer ${token}`, apikey: supabaseKey } : { apikey: supabaseKey }
             })
             if (error) throw error
             await loadUsers()
@@ -202,7 +202,7 @@ export default function Users() {
           if (formData.password) payload.password = formData.password
           const { error } = await supabase.functions.invoke('user-admin', {
             body: payload,
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined
+            headers: token ? { Authorization: `Bearer ${token}`, apikey: supabaseKey } : { apikey: supabaseKey }
           })
           if (error) throw error
           await loadUsers()
