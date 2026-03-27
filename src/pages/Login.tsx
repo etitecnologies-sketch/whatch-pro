@@ -31,7 +31,9 @@ export default function Login() {
       }
     } catch (error) {
       console.error(error);
-      alert('Erro ao realizar autenticação');
+      const msg = (error as any)?.message || String(error || '')
+      const status = (error as any)?.status
+      alert(`Erro ao realizar autenticação${status ? ` (HTTP ${status})` : ''}.\n\nDetalhes: ${msg || 'Erro desconhecido'}`)
     } finally {
       setLoading(false);
     }
