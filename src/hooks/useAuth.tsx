@@ -40,15 +40,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { data: { session } } = await supabase.auth.getSession();
           
           if (session?.user) {
+            const { data: verified, error: verifyError } = await supabase.auth.getUser()
+            if (verifyError || !verified?.user) {
+              await supabase.auth.signOut()
+              setUser(null)
+              localStorage.removeItem('whatch_pro_user')
+            } else {
             setUser({
-              id: session.user.id,
-              name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário',
-              email: session.user.email || '',
-              role: session.user.user_metadata?.role || 'admin',
-              adminId: session.user.user_metadata?.adminId,
-              permissions: session.user.user_metadata?.permissions,
-              avatar: session.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${session.user.email}&background=random`
+              id: verified.user.id,
+              name: verified.user.user_metadata?.name || verified.user.email?.split('@')[0] || 'Usuário',
+              email: verified.user.email || '',
+              role: verified.user.user_metadata?.role || 'admin',
+              adminId: verified.user.user_metadata?.adminId,
+              permissions: verified.user.user_metadata?.permissions,
+              avatar: verified.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${verified.user.email}&background=random`
             });
+            }
           }
 
           const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
