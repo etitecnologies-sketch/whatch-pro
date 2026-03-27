@@ -220,6 +220,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setIsLoading(true);
     try {
+      const getJwtIssuer = (jwt: string | null | undefined) => {
+        if (!jwt) return null
+        const parts = jwt.split('.')
+        if (parts.length < 2) return null
+        const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+        const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
+        try {
+          const json = JSON.parse(atob(padded))
+          return typeof json?.iss === 'string' ? json.iss : null
+        } catch {
+          return null
+        }
+      }
+
       const readErr = async (err: unknown) => {
         if (err instanceof FunctionsHttpError) {
           const status = err.context?.status
@@ -283,8 +297,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error('Supabase: token inválido. Verifique VITE_SUPABASE_ANON_KEY no Vercel (use a anon key sem "Bearer" e sem aspas).')
         }
         if (secondDetails.status === 401 && (lower2.includes('invalid jwt') || lower2.includes('jwt expired'))) {
+          const { data: sessionData } = await supabase.auth.getSession()
+          const iss = getJwtIssuer(sessionData.session?.access_token || null)
+          const expected = `${String(supabaseUrl || '').replace(/\/$/, '')}/auth/v1`
           await supabase.auth.signOut()
-          throw new Error(`Sessão inválida (HTTP 401). Detalhes: ${secondDetails.text || msg2 || 'Unauthorized'}`)
+          throw new Error(`Sessão inválida (HTTP 401). Detalhes: ${secondDetails.text || msg2 || 'Unauthorized'}. Token iss: ${iss || 'desconhecido'}. Esperado: ${expected}`)
         }
         console.error('Edge function error:', second.error)
         throw new Error(secondDetails.status ? `HTTP ${secondDetails.status}: ${secondDetails.text || msg2}` : (secondDetails.text || msg2 || 'Erro ao criar usuário no Supabase'))
