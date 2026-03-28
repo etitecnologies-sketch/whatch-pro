@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
 import { supabase } from '../lib/supabase'
 import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError } from '@supabase/supabase-js'
+import { companyTypeOptions, featureLabel, getDefaultFeaturesByCompanyType, getDefaultPermissionsByProfile, normalizeCompanyType, profileOptionsByCompanyType, type CompanyTypeId, type UserProfileId } from '../lib/access'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -30,7 +31,22 @@ export default function Users() {
     role: 'sub-user' as 'sub-user' | 'admin',
     password: '',
     permissions: [] as string[],
-    tenantId: ''
+    tenantId: '',
+    companyType: 'todos' as CompanyTypeId,
+    profile: 'todos' as UserProfileId,
+    companyName: '',
+    companyLegalName: '',
+    companyDocument: '',
+    companyIE: '',
+    companyPhone: '',
+    companyEmail: '',
+    companyCEP: '',
+    companyAddress: '',
+    companyNumber: '',
+    companyComplement: '',
+    companyNeighborhood: '',
+    companyCity: '',
+    companyState: '',
   })
 
   const availablePermissions = [
@@ -38,10 +54,13 @@ export default function Users() {
     { id: 'crm', label: 'CRM (Vendas)' },
     { id: 'clients', label: 'Clientes' },
     { id: 'inventory', label: 'Estoque / Itens' },
+    { id: 'warehouse', label: 'Almoxarifado' },
     { id: 'service-orders', label: 'Chamados (Acesso)' },
     { id: 'service-orders-tech', label: 'Chamados (Técnico)' },
     { id: 'service-orders-admin', label: 'Chamados (Admin)' },
     { id: 'quotations', label: 'Gerar Orçamentos' },
+    { id: 'plans', label: 'Planos' },
+    { id: 'contracts', label: 'Contratos' },
     { id: 'appearance', label: 'Mudar Aparência' },
     { id: 'employees', label: 'Funcionários' },
     { id: 'projects', label: 'Projetos' },
@@ -163,6 +182,19 @@ export default function Users() {
     .filter(u => u.role === 'admin' && u.email !== 'mestre@whatchpro.com' && !u.adminId)
     .sort((a, b) => a.name.localeCompare(b.name))
 
+  const getTenantCompanyType = () => {
+    if (isMaster) {
+      if (formData.role === 'admin' && !formData.tenantId) return formData.companyType
+      const tenant = companyAdmins.find(a => a.id === formData.tenantId)
+      return normalizeCompanyType(tenant?.companyType) || 'todos'
+    }
+    const rootId = currentUser ? (currentUser.adminId || currentUser.id) : ''
+    const root = allUsers.find(u => u.id === rootId)
+    return normalizeCompanyType(root?.companyType) || normalizeCompanyType(currentUser?.companyType) || 'todos'
+  }
+
+  const tenantCompanyType = getTenantCompanyType()
+
   const loadUsers = async () => {
     if (!currentUser) return
     setIsLoading(true)
@@ -247,7 +279,8 @@ export default function Users() {
           ? (isMaster ? (tenantId || undefined) : (currentTenantId || undefined))
           : (isMaster ? (tenantId || undefined) : (currentTenantId || undefined))
         const permissions = safeFormData.role === 'sub-user' ? safeFormData.permissions : undefined
-        const updates = { name: safeFormData.name, role: safeFormData.role, adminId, permissions }
+        const updates: any = { name: safeFormData.name, role: safeFormData.role, adminId, permissions }
+        if (safeFormData.role === 'sub-user') updates.profile = safeFormData.profile
 
         if (hasSupabase) {
           const payload: any = { action: 'update', userId: editingUser.id, updates }
@@ -266,6 +299,29 @@ export default function Users() {
           alert('Selecione a empresa (admin master) para vincular este sub-usuário.')
           return
         }
+        if (isMaster && formData.role === 'admin' && !formData.tenantId && !formData.companyName.trim()) {
+          alert('Informe o nome da empresa para concluir o cadastro.')
+          return
+        }
+
+        const tenant =
+          isMaster && formData.role === 'admin' && !formData.tenantId
+            ? {
+                name: formData.companyName,
+                legalName: formData.companyLegalName,
+                document: formData.companyDocument,
+                ie: formData.companyIE,
+                phone: formData.companyPhone,
+                email: formData.companyEmail,
+                cep: formData.companyCEP,
+                address: formData.companyAddress,
+                number: formData.companyNumber,
+                complement: formData.companyComplement,
+                neighborhood: formData.companyNeighborhood,
+                city: formData.companyCity,
+                state: formData.companyState,
+              }
+            : undefined
 
         const createdUser = await createSubUser(
           formData.name, 
@@ -273,7 +329,10 @@ export default function Users() {
           formData.password, 
           formData.role,
           formData.permissions,
-          isMaster ? (formData.tenantId || undefined) : undefined
+          isMaster ? (formData.tenantId || undefined) : undefined,
+          isMaster && formData.role === 'admin' && !formData.tenantId ? formData.companyType : undefined,
+          formData.role === 'sub-user' ? formData.profile : undefined,
+          tenant
         )
 
         if (createdUser) {
@@ -300,7 +359,22 @@ export default function Users() {
         role: user.role as 'sub-user' | 'admin',
         password: '',
         permissions: user.permissions || [],
-        tenantId: user.adminId ? resolveRootTenantId(user, idx) : ''
+        tenantId: user.adminId ? resolveRootTenantId(user, idx) : '',
+        companyType: normalizeCompanyType(user.companyType) || 'todos',
+        profile: (typeof user.profile === 'string' ? (user.profile as UserProfileId) : 'todos'),
+        companyName: '',
+        companyLegalName: '',
+        companyDocument: '',
+        companyIE: '',
+        companyPhone: '',
+        companyEmail: '',
+        companyCEP: '',
+        companyAddress: '',
+        companyNumber: '',
+        companyComplement: '',
+        companyNeighborhood: '',
+        companyCity: '',
+        companyState: '',
       })
     } else {
       setEditingUser(null)
@@ -310,7 +384,22 @@ export default function Users() {
         role: 'sub-user', 
         password: '',
         permissions: ['pdv', 'clients', 'inventory'],
-        tenantId: isMaster ? (companyAdmins[0]?.id || '') : (currentTenantId || '')
+        tenantId: isMaster ? (companyAdmins[0]?.id || '') : (currentTenantId || ''),
+        companyType: 'todos',
+        profile: 'todos',
+        companyName: '',
+        companyLegalName: '',
+        companyDocument: '',
+        companyIE: '',
+        companyPhone: '',
+        companyEmail: '',
+        companyCEP: '',
+        companyAddress: '',
+        companyNumber: '',
+        companyComplement: '',
+        companyNeighborhood: '',
+        companyCity: '',
+        companyState: '',
       })
     }
     setIsModalOpen(true)
@@ -551,9 +640,192 @@ export default function Users() {
                 </div>
               )}
 
+              {isMaster && !editingUser && formData.role === 'admin' && !formData.tenantId && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tipo de Empresa</label>
+                    <div className="relative group">
+                      <ShieldCheck size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors pointer-events-none" />
+                      <select
+                        value={formData.companyType}
+                        onChange={e => setFormData({ ...formData, companyType: e.target.value as CompanyTypeId })}
+                        className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner appearance-none"
+                      >
+                        {companyTypeOptions.map(t => (
+                          <option key={t.id} value={t.id}>{t.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2 col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Nome da Empresa</label>
+                      <input
+                        type="text"
+                        value={formData.companyName}
+                        onChange={e => setFormData({ ...formData, companyName: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                        placeholder="Ex: Loja Exemplo LTDA"
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Razão Social (opcional)</label>
+                      <input
+                        type="text"
+                        value={formData.companyLegalName}
+                        onChange={e => setFormData({ ...formData, companyLegalName: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                        placeholder="Ex: Loja Exemplo Comércio e Serviços LTDA"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">CNPJ/CPF</label>
+                      <input
+                        type="text"
+                        value={formData.companyDocument}
+                        onChange={e => setFormData({ ...formData, companyDocument: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                        placeholder="00.000.000/0000-00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">IE (opcional)</label>
+                      <input
+                        type="text"
+                        value={formData.companyIE}
+                        onChange={e => setFormData({ ...formData, companyIE: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                        placeholder="Inscrição Estadual"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Telefone (opcional)</label>
+                      <input
+                        type="text"
+                        value={formData.companyPhone}
+                        onChange={e => setFormData({ ...formData, companyPhone: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                        placeholder="(00) 00000-0000"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">E-mail (opcional)</label>
+                      <input
+                        type="email"
+                        value={formData.companyEmail}
+                        onChange={e => setFormData({ ...formData, companyEmail: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                        placeholder="contato@empresa.com"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">CEP (opcional)</label>
+                      <input
+                        type="text"
+                        value={formData.companyCEP}
+                        onChange={e => setFormData({ ...formData, companyCEP: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                        placeholder="00000-000"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">UF (opcional)</label>
+                      <input
+                        type="text"
+                        value={formData.companyState}
+                        onChange={e => setFormData({ ...formData, companyState: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                        placeholder="SP"
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Endereço (opcional)</label>
+                      <input
+                        type="text"
+                        value={formData.companyAddress}
+                        onChange={e => setFormData({ ...formData, companyAddress: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                        placeholder="Rua/Avenida"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Número (opcional)</label>
+                      <input
+                        type="text"
+                        value={formData.companyNumber}
+                        onChange={e => setFormData({ ...formData, companyNumber: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                        placeholder="123"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Complemento (opcional)</label>
+                      <input
+                        type="text"
+                        value={formData.companyComplement}
+                        onChange={e => setFormData({ ...formData, companyComplement: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                        placeholder="Sala, Bloco, etc."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Bairro (opcional)</label>
+                      <input
+                        type="text"
+                        value={formData.companyNeighborhood}
+                        onChange={e => setFormData({ ...formData, companyNeighborhood: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                        placeholder="Centro"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Cidade (opcional)</label>
+                      <input
+                        type="text"
+                        value={formData.companyCity}
+                        onChange={e => setFormData({ ...formData, companyCity: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                        placeholder="São Paulo"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Módulos Ativos</label>
+                    <div className="flex flex-wrap gap-2 p-4 bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
+                      {getDefaultFeaturesByCompanyType(formData.companyType).map(f => (
+                        <span key={f} className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-800 text-slate-500 border border-white/10">
+                          {featureLabel[f]}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {formData.role === 'sub-user' && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Permissões do Usuário</label>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Perfil de Acesso</label>
+                    <div className="relative group">
+                      <UserCheck size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors pointer-events-none" />
+                      <select
+                        value={formData.profile}
+                        onChange={e => {
+                          const nextProfile = e.target.value as UserProfileId
+                          const nextPerms = getDefaultPermissionsByProfile(nextProfile, tenantCompanyType)
+                          setFormData(prev => ({ ...prev, profile: nextProfile, permissions: nextPerms }))
+                        }}
+                        className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner appearance-none"
+                      >
+                        {profileOptionsByCompanyType(tenantCompanyType).map(p => (
+                          <option key={p.id} value={p.id}>{p.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
                     {availablePermissions.map(perm => (
                       <button

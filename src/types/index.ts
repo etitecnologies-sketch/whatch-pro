@@ -7,6 +7,9 @@ export interface User {
   avatar?: string;
   password?: string;
   permissions?: string[]; // Array of allowed modules (e.g., ['clients', 'inventory', 'quotations', 'appearance'])
+  companyType?: string;
+  features?: string[];
+  profile?: string;
 }
 
 export interface Quotation {

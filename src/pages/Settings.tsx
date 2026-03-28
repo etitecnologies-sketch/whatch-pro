@@ -37,12 +37,13 @@ import { supabase } from '../lib/supabase'
 import type { AsaasEnvironment } from '../lib/asaas'
 import type { ConfiguracaoSEFAZ } from '../types'
 import { jsPDF } from 'jspdf'
+import { companyTypeOptions, featureLabel, getDefaultFeaturesByCompanyType, normalizeCompanyType } from '../lib/access'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-type SettingsSection = 'profile' | 'notifications' | 'security' | 'appearance' | 'reports' | 'integrations' | 'receita' | 'system'
+type SettingsSection = 'profile' | 'notifications' | 'company' | 'security' | 'appearance' | 'reports' | 'integrations' | 'receita' | 'system'
 
 export default function Settings() {
   const { user, canAccess, updateUserMetadata } = useAuth()
@@ -57,6 +58,27 @@ export default function Settings() {
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const [selectedReportPeriod, setSelectedReportPeriod] = useState<'Semanal' | 'Mensal' | 'Anual'>('Mensal')
   const [isExportingReports, setIsExportingReports] = useState(false)
+  const [isLoadingTenant, setIsLoadingTenant] = useState(false)
+  const [isSavingTenant, setIsSavingTenant] = useState(false)
+  const [tenantOptions, setTenantOptions] = useState<Array<{ id: string; name: string; companyType: string | null }>>([])
+  const [selectedTenantId, setSelectedTenantId] = useState<string>('')
+  const [tenantForm, setTenantForm] = useState({
+    companyType: 'todos',
+    features: [] as string[],
+    name: '',
+    legalName: '',
+    document: '',
+    ie: '',
+    phone: '',
+    email: '',
+    cep: '',
+    address: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+  })
   
   // SEFAZ State
   const [sefazData, setSefazData] = useState<Partial<ConfiguracaoSEFAZ>>(configuracaoSEFAZ || {
@@ -88,6 +110,75 @@ export default function Settings() {
   useEffect(() => {
     if (configuracaoSEFAZ) setSefazData(configuracaoSEFAZ)
   }, [configuracaoSEFAZ])
+
+  useEffect(() => {
+    if (!user) return
+    if (user.email === 'mestre@whatchpro.com') {
+      void (async () => {
+        setIsLoadingTenant(true)
+        try {
+          const { data, error } = await supabase
+            .from('tenants')
+            .select('id,name,company_type')
+            .order('name', { ascending: true })
+          if (error) throw error
+          const list = (data || []).map((t: any) => ({
+            id: String(t.id),
+            name: String(t.name || ''),
+            companyType: t.company_type ? String(t.company_type) : null,
+          }))
+          setTenantOptions(list)
+          if (!selectedTenantId && list.length > 0) setSelectedTenantId(list[0].id)
+        } catch (e) {
+          console.error(e)
+        } finally {
+          setIsLoadingTenant(false)
+        }
+      })()
+      return
+    }
+
+    const tenantId = user.adminId || user.id
+    setSelectedTenantId(tenantId)
+  }, [selectedTenantId, user])
+
+  useEffect(() => {
+    if (!user) return
+    if (!selectedTenantId) return
+    void (async () => {
+      setIsLoadingTenant(true)
+      try {
+        const { data, error } = await supabase
+          .from('tenants')
+          .select('*')
+          .eq('id', selectedTenantId)
+          .maybeSingle()
+        if (error) throw error
+        if (!data) return
+        setTenantForm({
+          companyType: String(data.company_type || 'todos'),
+          features: Array.isArray(data.features) ? data.features : [],
+          name: String(data.name || ''),
+          legalName: String(data.legal_name || ''),
+          document: String(data.document || ''),
+          ie: String(data.ie || ''),
+          phone: String(data.phone || ''),
+          email: String(data.email || ''),
+          cep: String(data.cep || ''),
+          address: String(data.address || ''),
+          number: String(data.number || ''),
+          complement: String(data.complement || ''),
+          neighborhood: String(data.neighborhood || ''),
+          city: String(data.city || ''),
+          state: String(data.state || ''),
+        })
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setIsLoadingTenant(false)
+      }
+    })()
+  }, [selectedTenantId, user])
 
   const handleLogoFileChange = async (file: File | null) => {
     if (!file) return
@@ -494,6 +585,7 @@ export default function Settings() {
   const sections = [
     { id: 'profile', label: 'Meu Perfil', icon: User },
     { id: 'notifications', label: 'Notificações', icon: Bell },
+    { id: 'company', label: 'Empresa', icon: Database },
     { id: 'security', label: 'Segurança', icon: Shield },
     { id: 'appearance', label: 'Aparência', icon: Palette },
     { id: 'reports', label: 'Relatórios', icon: FileText },
@@ -501,7 +593,7 @@ export default function Settings() {
     { id: 'receita', label: 'Receita Federal', icon: ShieldCheck },
     { id: 'system', label: 'Sistema & Updates', icon: Cpu },
   ].filter(section => {
-    if (section.id === 'profile' || section.id === 'notifications') return true;
+    if (section.id === 'profile' || section.id === 'notifications' || section.id === 'company') return true;
     if (section.id === 'appearance') return canAccess('appearance');
     if (section.id === 'receita') return user?.role === 'admin' || user?.email === 'mestre@whatchpro.com';
     return user?.role === 'admin' || user?.email === 'mestre@whatchpro.com';
@@ -509,6 +601,248 @@ export default function Settings() {
 
   const renderSection = () => {
     switch (activeSection) {
+      case 'company':
+        return (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="p-6 rounded-3xl bg-white/5 border border-white/10 space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Dados da Empresa</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                    {user?.email === 'mestre@whatchpro.com'
+                      ? 'Selecione uma empresa para editar os dados cadastrais.'
+                      : 'Somente Admin pode editar. Sub-usuário visualiza os dados.'}
+                  </p>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!user) return
+                    const isMaster = user.email === 'mestre@whatchpro.com'
+                    const isAdmin = user.role === 'admin' && (user.adminId || user.id) === user.id
+                    if (!(isMaster || isAdmin)) {
+                      alert('Apenas o Administrador da empresa ou o Mestre podem editar.')
+                      return
+                    }
+                    if (!selectedTenantId) return
+                    setIsSavingTenant(true)
+                    try {
+                      const payload: any = {
+                        name: tenantForm.name,
+                        legal_name: tenantForm.legalName || null,
+                        document: tenantForm.document || null,
+                        ie: tenantForm.ie || null,
+                        phone: tenantForm.phone || null,
+                        email: tenantForm.email || null,
+                        cep: tenantForm.cep || null,
+                        address: tenantForm.address || null,
+                        number: tenantForm.number || null,
+                        complement: tenantForm.complement || null,
+                        neighborhood: tenantForm.neighborhood || null,
+                        city: tenantForm.city || null,
+                        state: tenantForm.state || null,
+                      }
+                      const { error } = await supabase.from('tenants').update(payload).eq('id', selectedTenantId)
+                      if (error) throw error
+                      setIsSaved(true)
+                      setTimeout(() => setIsSaved(false), 3000)
+                    } catch (e: any) {
+                      alert(e?.message || 'Não foi possível salvar a empresa.')
+                    } finally {
+                      setIsSavingTenant(false)
+                    }
+                  }}
+                  disabled={isSavingTenant || isLoadingTenant}
+                  className={cn(
+                    "px-5 py-3 font-black rounded-2xl transition-all flex items-center gap-2 shadow-lg",
+                    isSavingTenant || isLoadingTenant
+                      ? "bg-slate-200 dark:bg-slate-800 text-slate-500 cursor-not-allowed"
+                      : "bg-primary text-white glow-primary shadow-primary/20 hover:scale-105"
+                  )}
+                >
+                  {isSavingTenant ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                  Salvar Empresa
+                </button>
+              </div>
+
+              {user?.email === 'mestre@whatchpro.com' && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Empresa</label>
+                  <div className="relative group">
+                    <Database size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors pointer-events-none" />
+                    <select
+                      value={selectedTenantId}
+                      onChange={e => setSelectedTenantId(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner appearance-none"
+                    >
+                      {tenantOptions.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tipo de Empresa</label>
+                  <select
+                    value={tenantForm.companyType}
+                    disabled
+                    className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-900 border-0 rounded-2xl outline-none transition-all text-sm font-bold shadow-inner opacity-80"
+                  >
+                    {companyTypeOptions.map(t => (
+                      <option key={t.id} value={t.id}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Módulos Ativos</label>
+                  <div className="flex flex-wrap gap-2 p-4 bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
+                    {(tenantForm.features && tenantForm.features.length > 0
+                      ? tenantForm.features
+                      : getDefaultFeaturesByCompanyType(normalizeCompanyType(tenantForm.companyType) || 'todos')
+                    ).map((f) => (
+                      <span key={String(f)} className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-800 text-slate-500 border border-white/10">
+                        {(featureLabel as Record<string, string>)[String(f)] || String(f)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Nome da Empresa</label>
+                  <input
+                    type="text"
+                    value={tenantForm.name}
+                    onChange={e => setTenantForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Razão Social</label>
+                  <input
+                    type="text"
+                    value={tenantForm.legalName}
+                    onChange={e => setTenantForm(prev => ({ ...prev, legalName: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">CNPJ/CPF</label>
+                  <input
+                    type="text"
+                    value={tenantForm.document}
+                    onChange={e => setTenantForm(prev => ({ ...prev, document: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">IE</label>
+                  <input
+                    type="text"
+                    value={tenantForm.ie}
+                    onChange={e => setTenantForm(prev => ({ ...prev, ie: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Telefone</label>
+                  <input
+                    type="text"
+                    value={tenantForm.phone}
+                    onChange={e => setTenantForm(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">E-mail</label>
+                  <input
+                    type="email"
+                    value={tenantForm.email}
+                    onChange={e => setTenantForm(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">CEP</label>
+                  <input
+                    type="text"
+                    value={tenantForm.cep}
+                    onChange={e => setTenantForm(prev => ({ ...prev, cep: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">UF</label>
+                  <input
+                    type="text"
+                    value={tenantForm.state}
+                    onChange={e => setTenantForm(prev => ({ ...prev, state: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Endereço</label>
+                  <input
+                    type="text"
+                    value={tenantForm.address}
+                    onChange={e => setTenantForm(prev => ({ ...prev, address: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Número</label>
+                  <input
+                    type="text"
+                    value={tenantForm.number}
+                    onChange={e => setTenantForm(prev => ({ ...prev, number: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Complemento</label>
+                  <input
+                    type="text"
+                    value={tenantForm.complement}
+                    onChange={e => setTenantForm(prev => ({ ...prev, complement: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Bairro</label>
+                  <input
+                    type="text"
+                    value={tenantForm.neighborhood}
+                    onChange={e => setTenantForm(prev => ({ ...prev, neighborhood: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Cidade</label>
+                  <input
+                    type="text"
+                    value={tenantForm.city}
+                    onChange={e => setTenantForm(prev => ({ ...prev, city: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )
       case 'profile':
         return (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">

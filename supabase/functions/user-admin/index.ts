@@ -15,6 +15,9 @@ type AppUser = {
   adminId?: string
   permissions?: string[]
   avatar?: string
+  companyType?: string
+  features?: string[]
+  profile?: string
 }
 
 type AuthUserRow = {
@@ -30,8 +33,88 @@ const normalizeRole = (raw: unknown): "admin" | "sub-user" => (raw === "sub-user
 const normalizePermissions = (raw: unknown): string[] | undefined =>
   Array.isArray(raw) ? raw.filter(v => typeof v === "string") : undefined
 
+type CompanyTypeId = "supermercado" | "borracharia" | "oficina" | "vendas" | "provedor" | "todos"
+type FeatureId =
+  | "dashboard"
+  | "pdv"
+  | "crm"
+  | "clients"
+  | "employees"
+  | "inventory"
+  | "warehouse"
+  | "service-orders"
+  | "projects"
+  | "quotations"
+  | "finance"
+  | "documents"
+  | "plans"
+  | "contracts"
+  | "users"
+  | "settings"
+
+const companyTypes: CompanyTypeId[] = ["supermercado", "borracharia", "oficina", "vendas", "provedor", "todos"]
+const featureIds: FeatureId[] = [
+  "dashboard",
+  "pdv",
+  "crm",
+  "clients",
+  "employees",
+  "inventory",
+  "warehouse",
+  "service-orders",
+  "projects",
+  "quotations",
+  "finance",
+  "documents",
+  "plans",
+  "contracts",
+  "users",
+  "settings",
+]
+
+const normalizeCompanyType = (raw: unknown): CompanyTypeId | undefined => {
+  const v = typeof raw === "string" ? raw : ""
+  return companyTypes.includes(v as CompanyTypeId) ? (v as CompanyTypeId) : undefined
+}
+
+const normalizeFeatures = (raw: unknown): FeatureId[] | undefined => {
+  if (!Array.isArray(raw)) return undefined
+  const allowed = new Set<FeatureId>(featureIds)
+  const out: FeatureId[] = []
+  for (const v of raw) {
+    if (typeof v === "string" && allowed.has(v as FeatureId)) out.push(v as FeatureId)
+  }
+  return out.length > 0 ? out : undefined
+}
+
+const defaultFeaturesByCompanyType = (type: CompanyTypeId): FeatureId[] => {
+  const base: FeatureId[] = ["dashboard", "clients", "employees", "documents", "users", "settings"]
+  if (type === "todos") {
+    return [
+      ...base,
+      "pdv",
+      "crm",
+      "inventory",
+      "warehouse",
+      "service-orders",
+      "projects",
+      "quotations",
+      "finance",
+      "plans",
+      "contracts",
+    ]
+  }
+  if (type === "supermercado") return [...base, "pdv", "inventory", "quotations", "finance"]
+  if (type === "borracharia") return [...base, "inventory", "service-orders", "quotations", "finance"]
+  if (type === "oficina") return [...base, "inventory", "service-orders", "quotations", "finance", "projects"]
+  if (type === "vendas") return [...base, "crm", "quotations", "finance", "plans"]
+  return [...base, "service-orders", "finance", "plans", "contracts", "warehouse"]
+}
+
 const toAppUser = (u: AuthUserRow): AppUser => {
   const meta = (u.user_metadata || {}) as Record<string, unknown>
+  const companyType = normalizeCompanyType(meta.companyType)
+  const features = normalizeFeatures(meta.features) ?? (companyType ? defaultFeaturesByCompanyType(companyType) : undefined)
   return {
     id: u.id,
     email: u.email,
@@ -40,6 +123,9 @@ const toAppUser = (u: AuthUserRow): AppUser => {
     adminId: typeof meta.adminId === "string" ? meta.adminId : undefined,
     permissions: normalizePermissions(meta.permissions),
     avatar: typeof meta.avatar === "string" ? meta.avatar : undefined,
+    companyType,
+    features,
+    profile: typeof meta.profile === "string" ? meta.profile : undefined,
   }
 }
 
@@ -153,6 +239,10 @@ serve(async (req) => {
       const role = (payload?.role === "sub-user" ? "sub-user" : "admin") as "admin" | "sub-user"
       const permissions = normalizePermissions(payload?.permissions)
       const targetTenantId = typeof payload?.targetTenantId === "string" && payload.targetTenantId ? payload.targetTenantId : undefined
+      const requestedCompanyType = normalizeCompanyType(payload?.companyType) ?? "todos"
+      const requestedFeatures = normalizeFeatures(payload?.features) ?? defaultFeaturesByCompanyType(requestedCompanyType)
+      const profile = typeof payload?.profile === "string" ? payload.profile : undefined
+      const tenant = (payload?.tenant || {}) as Record<string, unknown>
 
       if (!name || !email || !password) {
         return new Response(JSON.stringify({ error: "Dados incompletos" }), {
@@ -183,6 +273,9 @@ serve(async (req) => {
       }
 
       const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`
+      const tenantRoot = adminId ? idx.get(adminId) : undefined
+      const nextCompanyType = tenantRoot?.companyType ?? (role === "admin" && !adminId ? requestedCompanyType : undefined)
+      const nextFeatures = tenantRoot?.features ?? (role === "admin" && !adminId ? requestedFeatures : undefined)
 
       const { data, error } = await supabaseAdmin.auth.admin.createUser({
         email,
@@ -194,11 +287,41 @@ serve(async (req) => {
           adminId,
           permissions: role === "sub-user" ? (permissions && permissions.length > 0 ? permissions : ["clients", "inventory", "quotations"]) : undefined,
           avatar,
+          companyType: nextCompanyType,
+          features: nextFeatures,
+          profile: role === "sub-user" ? profile : undefined,
         },
       })
 
       if (error) throw error
-      return new Response(JSON.stringify({ user: toAppUser({ id: data.user.id, email: data.user.email, user_metadata: data.user.user_metadata }) }), {
+      const created = toAppUser({ id: data.user.id, email: data.user.email, user_metadata: data.user.user_metadata })
+      if (role === "admin" && !adminId) {
+        const tenantName = String(tenant?.name || "").trim() || created.name
+        const insertPayload: Record<string, unknown> = {
+          id: created.id,
+          company_type: nextCompanyType || "todos",
+          features: nextFeatures || defaultFeaturesByCompanyType((nextCompanyType || "todos") as CompanyTypeId),
+          name: tenantName,
+          legal_name: typeof tenant?.legalName === "string" && tenant.legalName.trim() ? tenant.legalName.trim() : null,
+          document: typeof tenant?.document === "string" && tenant.document.trim() ? tenant.document.trim() : null,
+          ie: typeof tenant?.ie === "string" && tenant.ie.trim() ? tenant.ie.trim() : null,
+          phone: typeof tenant?.phone === "string" && tenant.phone.trim() ? tenant.phone.trim() : null,
+          email: typeof tenant?.email === "string" && tenant.email.trim() ? tenant.email.trim() : null,
+          cep: typeof tenant?.cep === "string" && tenant.cep.trim() ? tenant.cep.trim() : null,
+          address: typeof tenant?.address === "string" && tenant.address.trim() ? tenant.address.trim() : null,
+          number: typeof tenant?.number === "string" && tenant.number.trim() ? tenant.number.trim() : null,
+          complement: typeof tenant?.complement === "string" && tenant.complement.trim() ? tenant.complement.trim() : null,
+          neighborhood: typeof tenant?.neighborhood === "string" && tenant.neighborhood.trim() ? tenant.neighborhood.trim() : null,
+          city: typeof tenant?.city === "string" && tenant.city.trim() ? tenant.city.trim() : null,
+          state: typeof tenant?.state === "string" && tenant.state.trim() ? tenant.state.trim() : null,
+        }
+        const { error: tenantError } = await supabaseAdmin.from("tenants").insert(insertPayload as any)
+        if (tenantError) {
+          await supabaseAdmin.auth.admin.deleteUser(created.id).catch(() => null)
+          throw new Error(`Erro ao criar empresa: ${tenantError.message}`)
+        }
+      }
+      return new Response(JSON.stringify({ user: created }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
@@ -251,6 +374,9 @@ serve(async (req) => {
       const nextPermissions = nextRole === "sub-user"
         ? normalizePermissions(updates.permissions) ?? target.permissions
         : undefined
+      const nextProfile = nextRole === "sub-user"
+        ? (typeof updates.profile === "string" && updates.profile.trim() ? updates.profile.trim() : (typeof (target as any).profile === "string" ? (target as any).profile : undefined))
+        : undefined
 
       const { data: targetUserData, error: targetUserError } = await supabaseAdmin.auth.admin.getUserById(userId)
       if (targetUserError || !targetUserData?.user) throw (targetUserError || new Error("Usuário não encontrado"))
@@ -263,6 +389,7 @@ serve(async (req) => {
         role: nextRole,
         adminId: nextAdminId,
         permissions: nextPermissions,
+        profile: nextProfile,
         avatar: typeof updates.avatar === "string" ? updates.avatar : (typeof prevMeta.avatar === "string" ? prevMeta.avatar : target.avatar),
       }
 

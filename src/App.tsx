@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
@@ -14,12 +14,20 @@ import Login from './pages/Login'
 import PDV from './pages/PDV'
 import ServiceOrders from './pages/ServiceOrders'
 import CRM from './pages/CRM'
+import Plans from './pages/Plans'
+import Contracts from './pages/Contracts'
+import Warehouse from './pages/Warehouse'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { AppearanceProvider } from './hooks/useAppearance'
 
 function AppContent() {
   const { user, isLoading, canAccess } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard')
+
+  useEffect(() => {
+    if (!user) return
+    if (user.email === 'mestre@whatchpro.com' && !canAccess(activeTab)) setActiveTab('users')
+  }, [activeTab, canAccess, user])
 
   if (isLoading) {
     return (
@@ -34,8 +42,8 @@ function AppContent() {
   }
 
   const renderContent = () => {
-    // Basic access control
-    if (activeTab !== 'dashboard' && activeTab !== 'settings' && !canAccess(activeTab)) {
+    if (!canAccess(activeTab)) {
+      if (user?.email === 'mestre@whatchpro.com') return <Users />
       return <Dashboard />
     }
 
@@ -50,6 +58,8 @@ function AppContent() {
         return <Employees />
       case 'inventory':
         return <Inventory />
+      case 'warehouse':
+        return <Warehouse />
       case 'projects':
         return <Projects />
       case 'finance':
@@ -62,6 +72,10 @@ function AppContent() {
         return <ServiceOrders />
       case 'crm':
         return <CRM />
+      case 'plans':
+        return <Plans />
+      case 'contracts':
+        return <Contracts />
       case 'users':
         return <Users />
       case 'settings':

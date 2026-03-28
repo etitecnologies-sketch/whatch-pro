@@ -27,7 +27,7 @@ export function useData() {
   // This ensures isolation between different companies/admins.
   const getTenantId = useCallback(() => {
     if (!user) return null;
-    if (user.email === 'mestre@whatchpro.com') return 'master';
+    if (user.email === 'mestre@whatchpro.com') return null;
     return user.adminId || user.id;
   }, [user]);
 
@@ -70,6 +70,7 @@ export function useData() {
   // Sync logic: Cloud -> Local (Pull)
   const syncFromCloud = useCallback(async () => {
     if (!hasSupabase || !user) return;
+    if (user.email === 'mestre@whatchpro.com') return;
     setIsSyncing(true);
     try {
       // 1. Determine effective filtering

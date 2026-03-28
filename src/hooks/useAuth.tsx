@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { User } from '../types';
 import { supabase } from '../lib/supabase';
-import { createClient, FunctionsFetchError, FunctionsHttpError, FunctionsRelayError } from '@supabase/supabase-js';
+import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError } from '@supabase/supabase-js';
+import { getDefaultFeaturesByCompanyType, normalizeCompanyType, normalizeFeatures, type CompanyTypeId } from '../lib/access';
 
 interface AuthContextType {
   user: User | null;
@@ -14,7 +15,24 @@ interface AuthContextType {
     password: string,
     role?: 'sub-user' | 'admin',
     permissions?: string[],
-    targetTenantId?: string
+    targetTenantId?: string,
+    companyType?: CompanyTypeId,
+    profile?: string,
+    tenant?: {
+      name?: string
+      legalName?: string
+      document?: string
+      ie?: string
+      phone?: string
+      email?: string
+      cep?: string
+      address?: string
+      number?: string
+      complement?: string
+      neighborhood?: string
+      city?: string
+      state?: string
+    }
   ) => Promise<{ id: string; email: string }>;
   updateUserMetadata: (updates: Record<string, any>) => Promise<void>;
   isLoading: boolean;
@@ -53,6 +71,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               role: verified.user.user_metadata?.role || 'admin',
               adminId: verified.user.user_metadata?.adminId,
               permissions: verified.user.user_metadata?.permissions,
+              companyType: normalizeCompanyType(verified.user.user_metadata?.companyType),
+              features: normalizeFeatures(verified.user.user_metadata?.features),
+              profile: typeof verified.user.user_metadata?.profile === 'string' ? verified.user.user_metadata.profile : undefined,
               avatar: verified.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${verified.user.email}&background=random`
             });
             }
@@ -73,6 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 role: session.user.user_metadata?.role || 'admin',
                 adminId: session.user.user_metadata?.adminId,
                 permissions: session.user.user_metadata?.permissions,
+                companyType: normalizeCompanyType(session.user.user_metadata?.companyType),
+                features: normalizeFeatures(session.user.user_metadata?.features),
+                profile: typeof session.user.user_metadata?.profile === 'string' ? session.user.user_metadata.profile : undefined,
                 avatar: session.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${session.user.email}&background=random`
               });
             } else {
@@ -112,6 +136,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             role: data.user.user_metadata?.role || 'admin',
             adminId: data.user.user_metadata?.adminId,
             permissions: Array.isArray(data.user.user_metadata?.permissions) ? data.user.user_metadata.permissions : undefined,
+            companyType: normalizeCompanyType(data.user.user_metadata?.companyType),
+            features: normalizeFeatures(data.user.user_metadata?.features),
+            profile: typeof data.user.user_metadata?.profile === 'string' ? data.user.user_metadata.profile : undefined,
             avatar: data.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${data.user.email}&background=random`
           };
           setUser(newUser);
@@ -183,7 +210,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     role: 'sub-user' | 'admin' = 'sub-user',
     permissions?: string[],
-    targetTenantId?: string
+    targetTenantId?: string,
+    companyType?: CompanyTypeId,
+    profile?: string,
+    tenant?: {
+      name?: string
+      legalName?: string
+      document?: string
+      ie?: string
+      phone?: string
+      email?: string
+      cep?: string
+      address?: string
+      number?: string
+      complement?: string
+      neighborhood?: string
+      city?: string
+      state?: string
+    }
   ) => {
     if (!hasSupabase) {
       throw new Error('Supabase não configurado. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Vercel.');
@@ -256,6 +300,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const invokeOnce = async () => {
+        const features = (isMaster && role === 'admin' && !targetTenantId && companyType)
+          ? getDefaultFeaturesByCompanyType(companyType)
+          : undefined
+        const tenantPayload = (isMaster && role === 'admin' && !targetTenantId) ? (tenant || undefined) : undefined
         const { data, error } = await supabase.functions.invoke('user-admin', {
           body: {
             action: 'create',
@@ -265,6 +313,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             role,
             permissions,
             targetTenantId: isMaster ? (targetTenantId || undefined) : undefined,
+            companyType: (isMaster && role === 'admin' && !targetTenantId) ? (companyType || undefined) : undefined,
+            features,
+            profile: role === 'sub-user' ? (profile || undefined) : undefined,
+            tenant: tenantPayload,
           }
         })
         return { data, error }
@@ -343,9 +395,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const canAccess = (permission: string) => {
     if (!user) return false;
     
-    // Master has full access to everything
-    // Identify by special email (must be authenticated via Supabase/Mock)
-    if (user.email === 'mestre@whatchpro.com') return true;
+    if (user.email === 'mestre@whatchpro.com') return permission === 'users' || permission === 'settings';
+
+    if (permission === 'dashboard') return true
+
+    const features = Array.isArray(user.features) ? user.features : undefined
+    if (features && features.length > 0 && !features.includes(permission)) return false
     
     // Admins have full access by default
     if (user.role === 'admin') return true;

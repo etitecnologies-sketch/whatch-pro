@@ -94,15 +94,15 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
     { id: 'clients', icon: Building2, label: 'Clientes' },
     { id: 'employees', icon: UsersIcon, label: 'Funcionários' },
     { id: 'inventory', icon: Package, label: 'Estoque' },
+    { id: 'warehouse', icon: Package, label: 'Almoxarifado' },
     { id: 'service-orders', icon: Wrench, label: 'Chamados' },
     { id: 'projects', icon: Briefcase, label: 'Projetos' },
     { id: 'quotations', icon: FileTextIcon, label: 'Orçamentos' },
     { id: 'finance', icon: DollarSign, label: 'Financeiro' },
+    { id: 'plans', icon: FileTextIcon, label: 'Planos' },
+    { id: 'contracts', icon: Briefcase, label: 'Contratos' },
     { id: 'documents', icon: FileTextIcon, label: 'Documentos' },
-  ].filter(item => {
-    if (item.id === 'dashboard') return true;
-    return canAccess(item.id);
-  })
+  ].filter(item => canAccess(item.id))
 
   if (user?.role === 'admin' || user?.email === 'mestre@whatchpro.com') {
     sidebarItems.push({ id: 'users', icon: ShieldCheck, label: 'Usuários' })
