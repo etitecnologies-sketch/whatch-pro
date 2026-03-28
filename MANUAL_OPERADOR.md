@@ -87,6 +87,10 @@ Dica (quantidade rapida):
 - Segunda via: no **Historico**, clique em **Imprimir** na venda desejada.
 Observacao: se o navegador bloquear popup, permita popups para o site.
 
+Logo no PDV:
+- A logo exibida no topo do PDV e no cupom impresso vem da configuracao da empresa (definida pelo Administrador).
+- Se nao aparecer, peca ao Administrador para configurar a Logo da Empresa em Configuracoes → Empresa.
+
 ### 4.4 Estorno de venda
 No historico voce pode estornar uma venda.
 O estorno:
@@ -128,4 +132,3 @@ Objetivo: registrar atendimento e pecas.
   - Libere popups no navegador e tente novamente.
 - Nao vejo uma tela no menu:
   - Peca ao Admin para habilitar o modulo/permissao do seu usuario.
-

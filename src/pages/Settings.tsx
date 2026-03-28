@@ -71,6 +71,7 @@ export default function Settings() {
     companyType: 'todos',
     features: [] as string[],
     name: '',
+    logoUrl: '',
     legalName: '',
     document: '',
     ie: '',
@@ -244,6 +245,7 @@ export default function Settings() {
           companyType: String(tenant.company_type || 'todos'),
           features: Array.isArray(tenant.features) ? tenant.features : [],
           name: String(tenant.name || ''),
+          logoUrl: String(tenant.logo_url || ''),
           legalName: String(tenant.legal_name || ''),
           document: String(tenant.document || ''),
           ie: String(tenant.ie || ''),
@@ -750,6 +752,7 @@ export default function Settings() {
                         company_type: nextCompanyType,
                         features: nextFeatures,
                         name: tenantForm.name,
+                        logo_url: tenantForm.logoUrl || null,
                         legal_name: tenantForm.legalName || null,
                         document: tenantForm.document || null,
                         ie: tenantForm.ie || null,
@@ -939,6 +942,35 @@ export default function Settings() {
                         : "bg-slate-100 dark:bg-slate-900 opacity-80"
                     )}
                   />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Logo da Empresa (URL)</label>
+                  <input
+                    type="url"
+                    value={tenantForm.logoUrl}
+                    onChange={e => setTenantForm(prev => ({ ...prev, logoUrl: e.target.value }))}
+                    disabled={!canEditTenant}
+                    placeholder="https://..."
+                    className={cn(
+                      "w-full px-4 py-3 border-0 rounded-2xl outline-none transition-all text-sm font-bold shadow-inner",
+                      canEditTenant
+                        ? "bg-slate-50 dark:bg-slate-900 focus:ring-4 focus:ring-primary/10"
+                        : "bg-slate-100 dark:bg-slate-900 opacity-80"
+                    )}
+                  />
+                  {Boolean(tenantForm.logoUrl) && (
+                    <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+                      <img
+                        src={tenantForm.logoUrl}
+                        alt="Logo"
+                        className="h-10 w-10 rounded-2xl object-cover border border-white/10 bg-slate-950/40"
+                      />
+                      <div className="text-[10px] font-bold text-slate-500 dark:text-slate-300">
+                        Logo usada no PDV (topo) e no cupom impresso.
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2 md:col-span-2">

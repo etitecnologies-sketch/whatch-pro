@@ -99,9 +99,9 @@ Use para cobrancas e sincronizacao financeira, quando habilitado.
 ## 5. PDV (administracao)
 
 ### 5.1 Logo do cliente no PDV
-Para mostrar a logo no PDV:
-- Configuracoes → SEFAZ → Logo (URL)
-- No PDV, ative o botao Logo
+Para mostrar a logo no PDV e no cupom impresso:
+- Configuracoes → Empresa → Logo da Empresa (URL)
+- No PDV, ative o botao Logo (se quiser esconder/mostrar)
 
 ### 5.2 Estorno e controle
 - Estorno deve ser usado apenas com autorizacao do responsavel.
@@ -128,4 +128,3 @@ Para mostrar a logo no PDV:
   - Verifique permissoes e modulos ativos da empresa.
 - Impressao nao abre:
   - Habilite popups no navegador (segunda via/impressao).
-

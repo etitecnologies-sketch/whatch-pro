@@ -4,6 +4,7 @@ import { useData } from '../hooks/useData'
 import { useAuth } from '../hooks/useAuth'
 import { Product } from '../types'
 import { useSEFAZ } from '../hooks/useSEFAZ'
+import { supabase } from '../lib/supabase'
 
 export default function PDV() {
   const { products, clients, sales, addTransaction, addSale, voidSale, addStockMovements, updateProduct } = useData()
@@ -26,7 +27,32 @@ export default function PDV() {
   const cashInputRef = useRef<HTMLInputElement>(null)
 
   const tenantId = user ? (user.adminId || user.id) : ''
-  const logoUrl = configuracaoSEFAZ?.logoUrl || ''
+  const [tenantLogoUrl, setTenantLogoUrl] = useState<string>('')
+  const logoUrl = tenantLogoUrl || configuracaoSEFAZ?.logoUrl || ''
+
+  useEffect(() => {
+    if (!user) return
+    const tId = user.adminId || user.id
+    let cancelled = false
+    void (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('tenants')
+          .select('logo_url')
+          .eq('id', tId)
+          .maybeSingle()
+        if (cancelled) return
+        if (error) return
+        setTenantLogoUrl(String((data as any)?.logo_url || ''))
+      } catch {
+        if (cancelled) return
+        setTenantLogoUrl('')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   useEffect(() => {
     if (!tenantId) return
