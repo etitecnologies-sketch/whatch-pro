@@ -109,6 +109,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setUser(next)
               localStorage.setItem('whatch_pro_user', JSON.stringify(next))
             }
+          } else {
+            setUser(null)
+            localStorage.removeItem('whatch_pro_user')
           }
 
           const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -318,6 +321,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const readErr = async (err: unknown) => {
+        const anyErr = err as any
+        if (typeof anyErr?.__http_status === 'number') {
+          return { status: anyErr.__http_status as number, text: String(anyErr.__http_text || anyErr.message || '') }
+        }
         if (err instanceof FunctionsHttpError) {
           const status = err.context?.status
           const cloned = err.context?.clone?.()
@@ -352,28 +359,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error('Sessão expirada. Faça login novamente.')
         }
 
-        const accessToken = await getAccessToken()
-        const features = (isMaster && role === 'admin' && !targetTenantId && companyType)
-          ? getDefaultFeaturesByCompanyType(companyType)
-          : undefined
-        const tenantPayload = (isMaster && role === 'admin' && !targetTenantId) ? (tenant || undefined) : undefined
-        const { data, error } = await supabase.functions.invoke('user-admin', {
-          body: {
-            action: 'create',
-            name,
-            email,
-            password,
-            role,
-            permissions,
-            targetTenantId: isMaster ? (targetTenantId || undefined) : undefined,
-            companyType: (isMaster && role === 'admin' && !targetTenantId) ? (companyType || undefined) : undefined,
-            features,
-            profile: role === 'sub-user' ? (profile || undefined) : undefined,
-            tenant: tenantPayload,
-          },
-          headers: { Authorization: `Bearer ${accessToken}` },
-        })
-        return { data, error }
+        try {
+          const accessToken = await getAccessToken()
+          const features = (isMaster && role === 'admin' && !targetTenantId && companyType)
+            ? getDefaultFeaturesByCompanyType(companyType)
+            : undefined
+          const tenantPayload = (isMaster && role === 'admin' && !targetTenantId) ? (tenant || undefined) : undefined
+          const userAdminUrl = `${String(supabaseUrl || '').replace(/\/$/, '')}/functions/v1/user-admin`
+          const res = await fetch(userAdminUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: String(supabaseKey || ''),
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              action: 'create',
+              name,
+              email,
+              password,
+              role,
+              permissions,
+              targetTenantId: isMaster ? (targetTenantId || undefined) : undefined,
+              companyType: (isMaster && role === 'admin' && !targetTenantId) ? (companyType || undefined) : undefined,
+              features,
+              profile: role === 'sub-user' ? (profile || undefined) : undefined,
+              tenant: tenantPayload,
+            }),
+          })
+          if (!res.ok) {
+            let text = ''
+            try {
+              text = JSON.stringify(await res.json())
+            } catch {
+              try {
+                text = await res.text()
+              } catch {
+                text = ''
+              }
+            }
+            const err: any = new Error(text || res.statusText)
+            err.__http_status = res.status
+            err.__http_text = text
+            return { data: null, error: err }
+          }
+          return { data: await res.json(), error: null }
+        } catch (error) {
+          return { data: null, error }
+        }
       }
 
       const first = await invokeOnce()

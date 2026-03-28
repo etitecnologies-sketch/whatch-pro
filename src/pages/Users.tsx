@@ -93,6 +93,10 @@ export default function Users() {
     }
 
     const readErr = async (err: unknown) => {
+      const anyErr = err as any
+      if (typeof anyErr?.__http_status === 'number') {
+        return { status: anyErr.__http_status as number, text: String(anyErr.__http_text || anyErr.message || '') }
+      }
       if (err instanceof FunctionsHttpError) {
         const status = err.context?.status
         const cloned = err.context?.clone?.()
@@ -127,12 +131,37 @@ export default function Users() {
         throw new Error('Sessão expirada. Faça login novamente.')
       }
 
-      const accessToken = await getAccessToken()
-      const { data, error } = await supabase.functions.invoke('user-admin', {
-        body,
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
-      return { data, error }
+      try {
+        const accessToken = await getAccessToken()
+        const res = await fetch(userAdminUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: String(supabaseKey || ''),
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(body),
+        })
+        if (!res.ok) {
+          let text = ''
+          try {
+            text = JSON.stringify(await res.json())
+          } catch {
+            try {
+              text = await res.text()
+            } catch {
+              text = ''
+            }
+          }
+          const err: any = new Error(text || res.statusText)
+          err.__http_status = res.status
+          err.__http_text = text
+          return { data: null, error: err }
+        }
+        return { data: await res.json(), error: null }
+      } catch (error) {
+        return { data: null, error }
+      }
     }
 
     const first = await invokeOnce()

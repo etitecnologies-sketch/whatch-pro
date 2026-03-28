@@ -50,6 +50,9 @@ export default function Settings() {
   const { theme, setTheme, accentColor, setAccentColor } = useAppearance()
   const { syncAllClientsWithAsaas, transactions, projects, products, employees, serviceOrders, quotations } = useData()
   const { configuracaoSEFAZ, certificados, salvarConfiguracaoSEFAZ, carregarCertificado, removerCertificado, ativarCertificado } = useSEFAZ()
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const userAdminUrl = `${String(supabaseUrl || '').replace(/\/$/, '')}/functions/v1/user-admin`
   const [activeSection, setActiveSection] = useState<SettingsSection>('profile')
   const [isSaved, setIsSaved] = useState(false)
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
@@ -136,11 +139,17 @@ export default function Settings() {
           const accessToken = await getAccessToken()
 
           const load = async () => {
-            const { data, error } = await supabase.functions.invoke('user-admin', {
-              body: { action: 'tenants_list' },
-              headers: { Authorization: `Bearer ${accessToken}` },
+            const res = await fetch(userAdminUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                apikey: String(supabaseKey || ''),
+                Authorization: `Bearer ${accessToken}`,
+              },
+              body: JSON.stringify({ action: 'tenants_list' }),
             })
-            if (error) throw error
+            if (!res.ok) throw new Error(await res.text())
+            const data = await res.json()
             const tenants = Array.isArray((data as any)?.tenants) ? (data as any).tenants : []
             return tenants.map((t: any) => ({
               id: String(t.id),
@@ -151,11 +160,16 @@ export default function Settings() {
 
           let list = await load()
           if (list.length === 0) {
-            const { error: syncError } = await supabase.functions.invoke('user-admin', {
-              body: { action: 'tenants_sync' },
-              headers: { Authorization: `Bearer ${accessToken}` },
+            const syncRes = await fetch(userAdminUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                apikey: String(supabaseKey || ''),
+                Authorization: `Bearer ${accessToken}`,
+              },
+              body: JSON.stringify({ action: 'tenants_sync' }),
             })
-            if (!syncError) {
+            if (syncRes.ok) {
               list = await load()
             }
           }
@@ -203,11 +217,17 @@ export default function Settings() {
           }
 
           const accessToken = await getAccessToken()
-          const { data, error } = await supabase.functions.invoke('user-admin', {
-            body: { action: 'tenant_get', tenantId: selectedTenantId },
-            headers: { Authorization: `Bearer ${accessToken}` },
+          const res = await fetch(userAdminUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: String(supabaseKey || ''),
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({ action: 'tenant_get', tenantId: selectedTenantId }),
           })
-          if (error) throw error
+          if (!res.ok) throw new Error(await res.text())
+          const data = await res.json()
           tenant = (data as any)?.tenant || null
         } else {
           const { data, error } = await supabase
@@ -743,11 +763,17 @@ export default function Settings() {
                         city: tenantForm.city || null,
                         state: tenantForm.state || null,
                       }
-                      const { data, error } = await supabase.functions.invoke('user-admin', {
-                        body: { action: 'tenant_update', tenantId: selectedTenantId, updates: payload },
-                        headers: { Authorization: `Bearer ${accessToken}` },
+                      const res = await fetch(userAdminUrl, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          apikey: String(supabaseKey || ''),
+                          Authorization: `Bearer ${accessToken}`,
+                        },
+                        body: JSON.stringify({ action: 'tenant_update', tenantId: selectedTenantId, updates: payload }),
                       })
-                      if (error) throw error
+                      if (!res.ok) throw new Error(await res.text())
+                      const data = await res.json()
                       if ((data as any)?.tenant) {
                         const t = (data as any).tenant
                         setTenantForm(prev => ({
