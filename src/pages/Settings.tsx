@@ -62,6 +62,8 @@ export default function Settings() {
   const [isSavingTenant, setIsSavingTenant] = useState(false)
   const [tenantOptions, setTenantOptions] = useState<Array<{ id: string; name: string; companyType: string | null }>>([])
   const [selectedTenantId, setSelectedTenantId] = useState<string>('')
+  const [tenantOptionsError, setTenantOptionsError] = useState<string>('')
+  const [tenantError, setTenantError] = useState<string>('')
   const [tenantForm, setTenantForm] = useState({
     companyType: 'todos',
     features: [] as string[],
@@ -116,13 +118,14 @@ export default function Settings() {
     if (user.email === 'mestre@whatchpro.com') {
       void (async () => {
         setIsLoadingTenant(true)
+        setTenantOptionsError('')
         try {
-          const { data, error } = await supabase
-            .from('tenants')
-            .select('id,name,company_type')
-            .order('name', { ascending: true })
+          const { data, error } = await supabase.functions.invoke('user-admin', {
+            body: { action: 'tenants_list' },
+          })
           if (error) throw error
-          const list = (data || []).map((t: any) => ({
+          const tenants = Array.isArray((data as any)?.tenants) ? (data as any).tenants : []
+          const list = tenants.map((t: any) => ({
             id: String(t.id),
             name: String(t.name || ''),
             companyType: t.company_type ? String(t.company_type) : null,
@@ -131,6 +134,8 @@ export default function Settings() {
           if (!selectedTenantId && list.length > 0) setSelectedTenantId(list[0].id)
         } catch (e) {
           console.error(e)
+          setTenantOptions([])
+          setTenantOptionsError((e as any)?.message || 'Não foi possível carregar as empresas.')
         } finally {
           setIsLoadingTenant(false)
         }
@@ -140,40 +145,57 @@ export default function Settings() {
 
     const tenantId = user.adminId || user.id
     setSelectedTenantId(tenantId)
-  }, [selectedTenantId, user])
+  }, [user])
 
   useEffect(() => {
     if (!user) return
     if (!selectedTenantId) return
     void (async () => {
       setIsLoadingTenant(true)
+      setTenantError('')
       try {
-        const { data, error } = await supabase
-          .from('tenants')
-          .select('*')
-          .eq('id', selectedTenantId)
-          .maybeSingle()
-        if (error) throw error
-        if (!data) return
+        const isMaster = user.email === 'mestre@whatchpro.com'
+        const isRootAdmin = user.role === 'admin' && !user.adminId
+        const shouldUseEdge = isMaster || isRootAdmin
+
+        let tenant: any = null
+        if (shouldUseEdge) {
+          const { data, error } = await supabase.functions.invoke('user-admin', {
+            body: { action: 'tenant_get', tenantId: selectedTenantId },
+          })
+          if (error) throw error
+          tenant = (data as any)?.tenant || null
+        } else {
+          const { data, error } = await supabase
+            .from('tenants')
+            .select('*')
+            .eq('id', selectedTenantId)
+            .maybeSingle()
+          if (error) throw error
+          tenant = data || null
+        }
+
+        if (!tenant) return
         setTenantForm({
-          companyType: String(data.company_type || 'todos'),
-          features: Array.isArray(data.features) ? data.features : [],
-          name: String(data.name || ''),
-          legalName: String(data.legal_name || ''),
-          document: String(data.document || ''),
-          ie: String(data.ie || ''),
-          phone: String(data.phone || ''),
-          email: String(data.email || ''),
-          cep: String(data.cep || ''),
-          address: String(data.address || ''),
-          number: String(data.number || ''),
-          complement: String(data.complement || ''),
-          neighborhood: String(data.neighborhood || ''),
-          city: String(data.city || ''),
-          state: String(data.state || ''),
+          companyType: String(tenant.company_type || 'todos'),
+          features: Array.isArray(tenant.features) ? tenant.features : [],
+          name: String(tenant.name || ''),
+          legalName: String(tenant.legal_name || ''),
+          document: String(tenant.document || ''),
+          ie: String(tenant.ie || ''),
+          phone: String(tenant.phone || ''),
+          email: String(tenant.email || ''),
+          cep: String(tenant.cep || ''),
+          address: String(tenant.address || ''),
+          number: String(tenant.number || ''),
+          complement: String(tenant.complement || ''),
+          neighborhood: String(tenant.neighborhood || ''),
+          city: String(tenant.city || ''),
+          state: String(tenant.state || ''),
         })
       } catch (e) {
         console.error(e)
+        setTenantError((e as any)?.message || 'Não foi possível carregar os dados da empresa.')
       } finally {
         setIsLoadingTenant(false)
       }
@@ -629,8 +651,8 @@ export default function Settings() {
                   onClick={async () => {
                     if (!user) return
                     const isMaster = user.email === 'mestre@whatchpro.com'
-                    const isAdmin = user.role === 'admin' && (user.adminId || user.id) === user.id
-                    if (!(isMaster || isAdmin)) {
+                    const isRootAdmin = user.role === 'admin' && !user.adminId
+                    if (!(isMaster || isRootAdmin)) {
                       alert('Apenas o Administrador da empresa ou o Mestre podem editar.')
                       return
                     }
@@ -645,7 +667,7 @@ export default function Settings() {
                         tenantForm.features && tenantForm.features.length > 0
                           ? (normalizeFeatures(tenantForm.features) || getDefaultFeaturesByCompanyType(nextCompanyType))
                           : []
-                      const payload: any = {
+                      const payload: Record<string, unknown> = {
                         company_type: nextCompanyType,
                         features: nextFeatures,
                         name: tenantForm.name,
@@ -662,8 +684,19 @@ export default function Settings() {
                         city: tenantForm.city || null,
                         state: tenantForm.state || null,
                       }
-                      const { error } = await supabase.from('tenants').update(payload).eq('id', selectedTenantId)
+                      const { data, error } = await supabase.functions.invoke('user-admin', {
+                        body: { action: 'tenant_update', tenantId: selectedTenantId, updates: payload },
+                      })
                       if (error) throw error
+                      if ((data as any)?.tenant) {
+                        const t = (data as any).tenant
+                        setTenantForm(prev => ({
+                          ...prev,
+                          companyType: String(t.company_type || prev.companyType),
+                          features: Array.isArray(t.features) ? t.features : prev.features,
+                          name: String(t.name || prev.name),
+                        }))
+                      }
                       setIsSaved(true)
                       setTimeout(() => setIsSaved(false), 3000)
                     } catch (e: any) {
@@ -703,6 +736,17 @@ export default function Settings() {
                       ))}
                     </select>
                   </div>
+                  {tenantOptionsError && (
+                    <div className="text-[10px] font-bold text-amber-700 dark:text-amber-300 px-1">
+                      {tenantOptionsError}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {tenantError && (
+                <div className="text-[10px] font-bold text-amber-700 dark:text-amber-300 px-1">
+                  {tenantError}
                 </div>
               )}
 

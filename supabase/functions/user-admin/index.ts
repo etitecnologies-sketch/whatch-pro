@@ -213,6 +213,71 @@ serve(async (req) => {
     const action = payload?.action as string | undefined
     console.log(JSON.stringify({ action, requester: requester.email }))
 
+    if (action === "tenants_list") {
+      if (!isMasterEmail(requester.email)) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+      const { data, error } = await supabaseAdmin
+        .from("tenants")
+        .select("id,name,company_type")
+        .order("name", { ascending: true })
+      if (error) throw error
+      return new Response(JSON.stringify({ tenants: data || [] }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
+
+    if (action === "tenant_get") {
+      const tenantId = typeof payload?.tenantId === "string" ? payload.tenantId : ""
+      if (!tenantId) {
+        return new Response(JSON.stringify({ error: "tenantId é obrigatório" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+      const allowed = isMasterEmail(requester.email) || (requester.role === "admin" && !requester.adminId && requester.id === tenantId)
+      if (!allowed) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+      const { data, error } = await supabaseAdmin.from("tenants").select("*").eq("id", tenantId).maybeSingle()
+      if (error) throw error
+      return new Response(JSON.stringify({ tenant: data || null }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
+
+    if (action === "tenant_update") {
+      const tenantId = typeof payload?.tenantId === "string" ? payload.tenantId : ""
+      const updates = (payload?.updates || {}) as Record<string, unknown>
+      if (!tenantId) {
+        return new Response(JSON.stringify({ error: "tenantId é obrigatório" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+      const allowed = isMasterEmail(requester.email) || (requester.role === "admin" && !requester.adminId && requester.id === tenantId)
+      if (!allowed) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+      const { data, error } = await supabaseAdmin.from("tenants").update(updates as any).eq("id", tenantId).select("*").maybeSingle()
+      if (error) throw error
+      return new Response(JSON.stringify({ tenant: data || null }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
+
     if (action === "list") {
       const all = await listAllUsers(supabaseAdmin)
       const idx = buildIndex(all)
