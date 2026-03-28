@@ -144,6 +144,18 @@ const resolveRootTenantId = (u: AppUser, idx: Map<string, AppUser>) => {
   return u.adminId || u.id
 }
 
+const decodeJwtPayload = (jwt: string): Record<string, unknown> | null => {
+  try {
+    const parts = jwt.split(".")
+    if (parts.length < 2) return null
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/")
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=")
+    return JSON.parse(atob(padded))
+  } catch {
+    return null
+  }
+}
+
 const listAllUsers = async (supabaseAdmin: any) => {
   const out: AppUser[] = []
   let page = 1
@@ -188,9 +200,12 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "")
+    const tokenPayload = decodeJwtPayload(token)
     const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token)
     if (authError || !authData?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      const tokenRole = typeof (tokenPayload as any)?.role === "string" ? String((tokenPayload as any).role) : null
+      const tokenIss = typeof (tokenPayload as any)?.iss === "string" ? String((tokenPayload as any).iss) : null
+      return new Response(JSON.stringify({ error: "Unauthorized", tokenRole, tokenIss }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
