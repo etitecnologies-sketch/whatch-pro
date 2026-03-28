@@ -299,6 +299,18 @@ export default function Users() {
           setUsers(filterVisibleUsers(updatedAllUsers, currentUser))
         }
       } else {
+        if (!formData.name.trim()) {
+          alert('Informe o nome do usuário.')
+          return
+        }
+        if (!formData.email.trim() || !formData.email.includes('@')) {
+          alert('Informe um e-mail válido.')
+          return
+        }
+        if (!formData.password || formData.password.length < 6) {
+          alert('Informe uma senha com pelo menos 6 caracteres.')
+          return
+        }
         if (formData.role === 'sub-user' && isMaster && !formData.tenantId) {
           alert('Selecione a empresa (admin master) para vincular este sub-usuário.')
           return
@@ -834,6 +846,7 @@ export default function Users() {
                     {availablePermissions.map(perm => (
                       <button
                         key={perm.id}
+                        type="button"
                         onClick={() => togglePermission(perm.id)}
                         className={cn(
                           "flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
@@ -858,12 +871,14 @@ export default function Users() {
 
             <div className="p-8 bg-white/5 border-t border-white/10 flex gap-4">
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="flex-1 px-6 py-3 bg-slate-100 dark:bg-slate-800 text-slate-500 font-black rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-sm"
               >
                 Cancelar
               </button>
               <button
+                type="button"
                 onClick={handleSave}
                 disabled={isSavingUser}
                 className="flex-1 px-6 py-3 bg-primary text-white font-black rounded-2xl glow-primary hover:scale-105 transition-all text-sm shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2"
