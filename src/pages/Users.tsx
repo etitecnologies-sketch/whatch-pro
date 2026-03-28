@@ -114,7 +114,13 @@ export default function Users() {
     }
 
     const invokeOnce = async () => {
-      const { data, error } = await supabase.functions.invoke('user-admin', { body })
+      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+      if (!accessToken) throw new Error('Sessão expirada. Faça login novamente.')
+      const { data, error } = await supabase.functions.invoke('user-admin', {
+        body,
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
       return { data, error }
     }
 

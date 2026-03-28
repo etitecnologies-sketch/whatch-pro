@@ -339,6 +339,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const invokeOnce = async () => {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const accessToken = sessionData.session?.access_token
+        if (!accessToken) throw new Error('Sessão expirada. Faça login novamente.')
         const features = (isMaster && role === 'admin' && !targetTenantId && companyType)
           ? getDefaultFeaturesByCompanyType(companyType)
           : undefined
@@ -356,7 +359,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             features,
             profile: role === 'sub-user' ? (profile || undefined) : undefined,
             tenant: tenantPayload,
-          }
+          },
+          headers: { Authorization: `Bearer ${accessToken}` },
         })
         return { data, error }
       }

@@ -120,9 +120,14 @@ export default function Settings() {
         setIsLoadingTenant(true)
         setTenantOptionsError('')
         try {
+          const { data: sessionData } = await supabase.auth.getSession()
+          const accessToken = sessionData.session?.access_token
+          if (!accessToken) throw new Error('Sessão expirada. Faça login novamente.')
+
           const load = async () => {
             const { data, error } = await supabase.functions.invoke('user-admin', {
               body: { action: 'tenants_list' },
+              headers: { Authorization: `Bearer ${accessToken}` },
             })
             if (error) throw error
             const tenants = Array.isArray((data as any)?.tenants) ? (data as any).tenants : []
@@ -137,6 +142,7 @@ export default function Settings() {
           if (list.length === 0) {
             const { error: syncError } = await supabase.functions.invoke('user-admin', {
               body: { action: 'tenants_sync' },
+              headers: { Authorization: `Bearer ${accessToken}` },
             })
             if (!syncError) {
               list = await load()
@@ -172,8 +178,12 @@ export default function Settings() {
 
         let tenant: any = null
         if (shouldUseEdge) {
+          const { data: sessionData } = await supabase.auth.getSession()
+          const accessToken = sessionData.session?.access_token
+          if (!accessToken) throw new Error('Sessão expirada. Faça login novamente.')
           const { data, error } = await supabase.functions.invoke('user-admin', {
             body: { action: 'tenant_get', tenantId: selectedTenantId },
+            headers: { Authorization: `Bearer ${accessToken}` },
           })
           if (error) throw error
           tenant = (data as any)?.tenant || null
@@ -674,6 +684,10 @@ export default function Settings() {
                     }
                     setIsSavingTenant(true)
                     try {
+                      const { data: sessionData } = await supabase.auth.getSession()
+                      const accessToken = sessionData.session?.access_token
+                      if (!accessToken) throw new Error('Sessão expirada. Faça login novamente.')
+
                       const nextCompanyType = normalizeCompanyType(tenantForm.companyType) || 'todos'
                       const nextFeatures =
                         tenantForm.features && tenantForm.features.length > 0
@@ -698,6 +712,7 @@ export default function Settings() {
                       }
                       const { data, error } = await supabase.functions.invoke('user-admin', {
                         body: { action: 'tenant_update', tenantId: selectedTenantId, updates: payload },
+                        headers: { Authorization: `Bearer ${accessToken}` },
                       })
                       if (error) throw error
                       if ((data as any)?.tenant) {
