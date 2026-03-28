@@ -1,4 +1,4 @@
-# Whatch Pro OS - Manual do Usuário (v1.4.1)
+# Whatch Pro OS - Manual do Usuário (v1.4)
 
 Bem-vindo ao **Whatch Pro OS**, sua plataforma completa de gestão empresarial e operacional. Este manual foi desenvolvido para ajudar você a dominar todas as funcionalidades do sistema e extrair o máximo de produtividade do seu negócio.
 

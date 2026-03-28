@@ -132,7 +132,12 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
               <Logo size={40} className="relative z-10" />
               <div className="flex flex-col">
                 <span className="font-black text-xl tracking-tightest leading-none text-white glow-text">WHATCH PRO</span>
-                <span className="text-[8px] font-black text-primary uppercase tracking-[0.3em] leading-none mt-1">Enterprise OS</span>
+                <span className="text-[8px] font-black text-primary uppercase tracking-[0.3em] leading-none mt-1">
+                  Enterprise OS (v{__APP_VERSION__.split('.').slice(0, 2).join('.')})
+                </span>
+                <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] leading-none mt-1">
+                  ETI TECNOLOGIES - TECHSOLVE SYSTEMS
+                </span>
               </div>
             </div>
           ) : (

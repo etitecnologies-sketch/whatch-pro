@@ -287,7 +287,7 @@ export default function BoletoModal({ isOpen, onClose, transaction }: BoletoModa
               <div className="mt-8 flex items-center justify-between border-t-2 border-dashed border-slate-200 pt-8">
                 <div className="flex items-center gap-2 text-slate-400">
                   <ShieldCheck size={16} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Autenticação Digital Whatch Pro Billing v1.0</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Autenticação Digital Whatch Pro Billing (v{__APP_VERSION__.split('.').slice(0, 2).join('.')})</span>
                 </div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase italic">Recibo do Pagador - Destaque aqui</p>
               </div>

@@ -130,7 +130,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               {isAdmin && (
                 <>
                   <QuickActionItem icon={Users} label="Gerenciar Equipe" desc="Controle de usuários" color="orange" onClick={() => onNavigate?.('users')} />
-                  <QuickActionItem icon={RefreshCw} label="Verificar Updates" desc="Whatch Pro OS v1.3.0" color="primary" onClick={() => onNavigate?.('settings')} />
+                  <QuickActionItem icon={RefreshCw} label="Verificar Updates" desc={`Whatch Pro OS (v${__APP_VERSION__.split('.').slice(0, 2).join('.')})`} color="primary" onClick={() => onNavigate?.('settings')} />
                 </>
               )}
             </div>

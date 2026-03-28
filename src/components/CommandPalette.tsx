@@ -120,7 +120,7 @@ export default function CommandPalette({ isOpen, setIsOpen, onSelect }: CommandP
               <span className="text-[10px] font-bold text-slate-400 uppercase">Selecionar</span>
             </div>
           </div>
-          <p className="text-[10px] font-black text-primary uppercase tracking-widest">Whatch Pro OS v1.0</p>
+          <p className="text-[10px] font-black text-primary uppercase tracking-widest">Whatch Pro OS (v{__APP_VERSION__.split('.').slice(0, 2).join('.')})</p>
         </div>
       </div>
     </div>

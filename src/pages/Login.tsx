@@ -77,10 +77,17 @@ export default function Login() {
           <h1 className="text-5xl font-black text-white tracking-tightest leading-none mb-3 glow-text">
             WHATCH <span className="text-primary">PRO</span>
           </h1>
-          <div className="flex items-center justify-center gap-2">
-            <div className="h-px w-8 bg-white/10"></div>
-            <p className="text-slate-500 font-black uppercase tracking-[0.4em] text-[10px]">Enterprise OS v1.0</p>
-            <div className="h-px w-8 bg-white/10"></div>
+          <div className="flex flex-col items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-2">
+              <div className="h-px w-8 bg-white/10"></div>
+              <p className="text-slate-500 font-black uppercase tracking-[0.4em] text-[10px]">
+                Enterprise OS (v{__APP_VERSION__.split('.').slice(0, 2).join('.')})
+              </p>
+              <div className="h-px w-8 bg-white/10"></div>
+            </div>
+            <p className="text-slate-500 font-black uppercase tracking-[0.25em] text-[10px]">
+              ETI TECNOLOGIES - TECHSOLVE SYSTEMS
+            </p>
           </div>
         </div>
 
