@@ -113,6 +113,29 @@ export interface Transaction {
   clientId?: string; // Link to Client for billing
 }
 
+export interface SaleItem {
+  productId: string;
+  sku?: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface Sale {
+  id: string;
+  userId: string;
+  adminId?: string; // Tenant ID
+  clientId?: string;
+  clientName: string;
+  paymentMethod: 'pix' | 'credit' | 'debit' | 'money';
+  cashReceived?: number;
+  changeAmount?: number;
+  total: number;
+  items: SaleItem[];
+  createdAt: string;
+}
+
 export interface ServiceOrder {
   id: string;
   userId: string;

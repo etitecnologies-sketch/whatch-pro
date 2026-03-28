@@ -1,86 +1,253 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, Search, User, CheckCircle2 } from 'lucide-react'
 import { useData } from '../hooks/useData'
 import { useAuth } from '../hooks/useAuth'
 import { Product } from '../types'
 
 export default function PDV() {
-  const { products, clients, addTransaction, updateProduct } = useData()
+  const { products, clients, addTransaction, addSale, addStockMovements, updateProduct } = useData()
   const { user } = useAuth()
   const [cart, setCart] = useState<Array<{ product: Product; quantity: number }>>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedClient, setSelectedClient] = useState<string>('')
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'credit' | 'debit' | 'money'>('pix')
+  const [cashReceived, setCashReceived] = useState<string>('')
+  const [selectedCartIndex, setSelectedCartIndex] = useState<number>(-1)
+  const [pdvMessage, setPdvMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Filter out products with 0 quantity and match search term
   const availableProducts = useMemo(() => {
-    if (!searchTerm) return products.filter(p => p.quantity > 0)
-    
-    return products.filter(p => {
-      const search = searchTerm.toLowerCase()
-      const matchesSearch = 
-        (p.name && p.name.toLowerCase().includes(search)) || 
-        (p.sku && p.sku.toLowerCase().includes(search))
-      return matchesSearch && p.quantity > 0
-    })
+    const normalize = (v: unknown) => String(v || '').trim().toLowerCase()
+    const raw = normalize(searchTerm)
+    if (!raw) return products.filter(p => p.quantity > 0)
+
+    const search = raw
+    const scored = products
+      .filter(p => p.quantity > 0)
+      .map(p => {
+        const name = normalize(p.name)
+        const sku = normalize(p.sku)
+        let score = 0
+        if (sku && sku === search) score += 100
+        if (name && name === search) score += 90
+        if (sku && sku.startsWith(search)) score += 60
+        if (name && name.startsWith(search)) score += 50
+        if (sku && sku.includes(search)) score += 30
+        if (name && name.includes(search)) score += 20
+        return { p, score }
+      })
+      .filter(x => x.score > 0)
+      .sort((a, b) => b.score - a.score || String(a.p.name || '').localeCompare(String(b.p.name || '')))
+
+    return scored.map(x => x.p)
   }, [products, searchTerm])
+
+  const total = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0)
+  const cashReceivedValue = useMemo(() => {
+    const cleaned = String(cashReceived || '').replace(/[^\d.,]/g, '').replace(/\.(?=.*\.)/g, '')
+    const normalized = cleaned.replace(',', '.')
+    const n = Number(normalized)
+    return Number.isFinite(n) ? n : 0
+  }, [cashReceived])
+  const changeValue = paymentMethod === 'money' ? Math.max(0, cashReceivedValue - total) : 0
+
+  useEffect(() => {
+    if (!pdvMessage) return
+    const t = setTimeout(() => setPdvMessage(null), 2500)
+    return () => clearTimeout(t)
+  }, [pdvMessage])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      const tag = (target?.tagName || '').toLowerCase()
+      const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select' || (target?.getAttribute?.('contenteditable') === 'true')
+      if (isTyping) return
+
+      if (e.key === 'F2') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        return
+      }
+
+      if (e.key === 'F4') {
+        e.preventDefault()
+        setCart([])
+        setSelectedCartIndex(-1)
+        setSelectedClient('')
+        setCashReceived('')
+        setPdvMessage({ type: 'success', text: 'Cupom limpo.' })
+        searchInputRef.current?.focus()
+        return
+      }
+
+      if (e.key === 'F9') {
+        e.preventDefault()
+        void handleCheckout()
+        return
+      }
+
+      if (e.key === 'ArrowDown') {
+        if (cart.length === 0) return
+        e.preventDefault()
+        setSelectedCartIndex(i => {
+          const next = Math.min(cart.length - 1, (i < 0 ? 0 : i + 1))
+          return next
+        })
+        return
+      }
+
+      if (e.key === 'ArrowUp') {
+        if (cart.length === 0) return
+        e.preventDefault()
+        setSelectedCartIndex(i => {
+          const next = Math.max(0, (i < 0 ? 0 : i - 1))
+          return next
+        })
+        return
+      }
+
+      if (e.key === 'Delete') {
+        if (selectedCartIndex < 0 || selectedCartIndex >= cart.length) return
+        e.preventDefault()
+        const productId = cart[selectedCartIndex].product.id
+        removeFromCart(productId)
+        return
+      }
+
+      if (e.key === '+' || e.key === '=') {
+        if (selectedCartIndex < 0 || selectedCartIndex >= cart.length) return
+        e.preventDefault()
+        updateQuantity(cart[selectedCartIndex].product.id, 1)
+        return
+      }
+
+      if (e.key === '-' || e.key === '_') {
+        if (selectedCartIndex < 0 || selectedCartIndex >= cart.length) return
+        e.preventDefault()
+        updateQuantity(cart[selectedCartIndex].product.id, -1)
+        return
+      }
+    }
+
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [cart, selectedCartIndex, paymentMethod, cashReceivedValue, total, selectedClient, clients, user])
+
+  const parseSearchLine = (raw: string) => {
+    const v = raw.trim()
+    const m = v.match(/^\s*(\d+)\s*[*xX]\s*(.+)\s*$/)
+    if (!m) return { qty: 1, term: v }
+    const qty = Math.max(1, Number(m[1] || 1))
+    const term = String(m[2] || '').trim()
+    return { qty: Number.isFinite(qty) ? qty : 1, term }
+  }
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      // Se tiver apenas 1 produto no resultado ou houver uma correspondência exata de SKU, adiciona direto
-      const exactMatch = availableProducts.find(p => p.sku && p.sku.toLowerCase() === searchTerm.toLowerCase())
+      const { qty, term } = parseSearchLine(searchTerm)
+      if (!term) return
+
+      const exactMatch = availableProducts.find(p => p.sku && p.sku.toLowerCase() === term.toLowerCase())
       
       if (exactMatch) {
-        addToCart(exactMatch)
+        addToCart(exactMatch, qty)
         setSearchTerm('')
       } else if (availableProducts.length === 1) {
-        addToCart(availableProducts[0])
+        addToCart(availableProducts[0], qty)
         setSearchTerm('')
       }
     }
   }
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, qty = 1) => {
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id)
       if (existing) {
-        if (existing.quantity >= product.quantity) return prev // Can't add more than stock
+        if (existing.quantity >= product.quantity) {
+          setPdvMessage({ type: 'error', text: 'Sem estoque suficiente.' })
+          return prev
+        }
+        const nextQty = Math.min(product.quantity, existing.quantity + qty)
         return prev.map(item => 
           item.product.id === product.id 
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: nextQty }
             : item
         )
       }
-      return [...prev, { product, quantity: 1 }]
+      const nextQty = Math.min(product.quantity, Math.max(1, qty))
+      return [...prev, { product, quantity: nextQty }]
     })
+    setSelectedCartIndex(() => {
+      const idx = cart.findIndex(i => i.product.id === product.id)
+      return idx >= 0 ? idx : cart.length
+    })
+    searchInputRef.current?.focus()
   }
 
   const updateQuantity = (productId: string, delta: number) => {
     setCart(prev => prev.map(item => {
-      if (item.product.id === productId) {
-        const newQuantity = item.quantity + delta
-        if (newQuantity > 0 && newQuantity <= item.product.quantity) {
-          return { ...item, quantity: newQuantity }
-        }
+      if (item.product.id !== productId) return item
+      const newQuantity = item.quantity + delta
+      if (newQuantity <= 0) return item
+      if (newQuantity > item.product.quantity) {
+        setPdvMessage({ type: 'error', text: 'Sem estoque suficiente.' })
+        return item
       }
-      return item
+      return { ...item, quantity: newQuantity }
     }))
   }
 
   const removeFromCart = (productId: string) => {
-    setCart(prev => prev.filter(item => item.product.id !== productId))
+    setCart(prev => {
+      const idx = prev.findIndex(i => i.product.id === productId)
+      if (idx < 0) return prev
+      const next = prev.filter(item => item.product.id !== productId)
+      setSelectedCartIndex(current => {
+        if (next.length === 0) return -1
+        if (current < 0) return 0
+        if (current > idx) return Math.min(next.length - 1, current - 1)
+        if (current === idx) return Math.min(next.length - 1, idx)
+        return Math.min(next.length - 1, current)
+      })
+      return next
+    })
   }
 
-  const total = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0)
-
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) return
+    if (paymentMethod === 'money' && cashReceivedValue < total) {
+      setPdvMessage({ type: 'error', text: 'Valor recebido menor que o total.' })
+      return
+    }
 
-    // 1. Create financial transaction
-    const clientName = clients.find(c => c.id === selectedClient)?.name || 'Cliente Balcão'
+    const client = clients.find(c => c.id === selectedClient)
+    const clientName = client?.name || 'Cliente Balcão'
+
+    const sale = addSale({
+      clientId: client?.id,
+      clientName,
+      paymentMethod,
+      cashReceived: paymentMethod === 'money' ? cashReceivedValue : undefined,
+      changeAmount: paymentMethod === 'money' ? changeValue : undefined,
+      total,
+      items: cart.map(item => ({
+        productId: item.product.id,
+        sku: item.product.sku,
+        name: item.product.name,
+        quantity: item.quantity,
+        unitPrice: item.product.price,
+        total: item.product.price * item.quantity,
+      })),
+    })
+
+    if (!sale) return
+    const saleShort = sale.id.slice(0, 8).toUpperCase()
+
     addTransaction({
-      description: `Venda PDV - ${clientName}`,
+      description: `Venda PDV #${saleShort} - ${clientName} (${paymentMethod.toUpperCase()})`,
       amount: total,
       type: 'income',
       category: 'Vendas',
@@ -89,7 +256,6 @@ export default function PDV() {
       userId: user?.id // Registra quem fez a venda
     } as any)
 
-    // 2. Update stock
     cart.forEach(item => {
       updateProduct({
         ...item.product,
@@ -97,10 +263,20 @@ export default function PDV() {
       })
     })
 
-    // 3. Clear PDV
+    await addStockMovements(cart.map(item => ({
+      productId: item.product.id,
+      quantityChange: -Math.abs(item.quantity),
+      reason: `Venda PDV #${saleShort}`,
+      referenceType: 'pdv',
+      referenceId: sale.id
+    })))
+
     setCart([])
     setSelectedClient('')
-    alert('Venda finalizada com sucesso!')
+    setCashReceived('')
+    setSelectedCartIndex(-1)
+    setPdvMessage({ type: 'success', text: 'Venda finalizada!' })
+    searchInputRef.current?.focus()
   }
 
   return (
@@ -112,6 +288,11 @@ export default function PDV() {
             <ShoppingCart className="text-primary" />
             Frente de Caixa
           </h2>
+          {pdvMessage && (
+            <div className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border ${pdvMessage.type === 'success' ? 'text-green-300 border-green-500/30 bg-green-500/10' : 'text-amber-300 border-amber-500/30 bg-amber-500/10'}`}>
+              {pdvMessage.text}
+            </div>
+          )}
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
@@ -121,6 +302,7 @@ export default function PDV() {
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={handleSearchKeyDown}
               autoFocus
+              ref={searchInputRef}
               className="w-full pl-10 pr-4 py-2 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm text-white"
             />
           </div>
@@ -178,8 +360,13 @@ export default function PDV() {
           <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4">Cupom Atual</h3>
           
           <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
-            {cart.map(item => (
-              <div key={item.product.id} className="p-3 bg-slate-900/40 rounded-xl border border-white/5 flex items-center gap-3">
+            {cart.map((item, idx) => (
+              <button
+                key={item.product.id}
+                type="button"
+                onClick={() => setSelectedCartIndex(idx)}
+                className={`w-full text-left p-3 rounded-xl border flex items-center gap-3 transition-all ${idx === selectedCartIndex ? 'bg-primary/10 border-primary/40' : 'bg-slate-900/40 border-white/5 hover:border-white/10'}`}
+              >
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-white truncate">{item.product.name}</p>
                   <p className="text-[10px] text-green-400 font-bold">
@@ -188,15 +375,15 @@ export default function PDV() {
                 </div>
                 
                 <div className="flex items-center gap-2 bg-slate-950 px-2 py-1 rounded-lg border border-white/10 shrink-0">
-                  <button onClick={() => updateQuantity(item.product.id, -1)} className="p-1 hover:text-primary transition-colors text-slate-400"><Minus size={12} /></button>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); updateQuantity(item.product.id, -1) }} className="p-1 hover:text-primary transition-colors text-slate-400"><Minus size={12} /></button>
                   <span className="text-xs font-black w-4 text-center text-white">{item.quantity}</span>
-                  <button onClick={() => updateQuantity(item.product.id, 1)} className="p-1 hover:text-primary transition-colors text-slate-400"><Plus size={12} /></button>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); updateQuantity(item.product.id, 1) }} className="p-1 hover:text-primary transition-colors text-slate-400"><Plus size={12} /></button>
                 </div>
                 
-                <button onClick={() => removeFromCart(item.product.id)} className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors shrink-0">
+                <button type="button" onClick={(e) => { e.stopPropagation(); removeFromCart(item.product.id) }} className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors shrink-0">
                   <Trash2 size={14} />
                 </button>
-              </div>
+              </button>
             ))}
             {cart.length === 0 && (
               <div className="h-full flex items-center justify-center text-slate-500 text-xs font-medium uppercase tracking-widest">
@@ -222,6 +409,27 @@ export default function PDV() {
               </button>
             </div>
 
+            {paymentMethod === 'money' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Recebido</div>
+                  <input
+                    type="text"
+                    value={cashReceived}
+                    onChange={e => setCashReceived(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-bold text-white"
+                    placeholder="0,00"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Troco</div>
+                  <div className="w-full px-4 py-3 bg-slate-900/30 border border-white/5 rounded-xl text-sm font-black text-white flex items-center justify-between">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(changeValue)}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-end justify-between">
               <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Total a Pagar</span>
               <span className="text-3xl font-black text-white tracking-tight">
@@ -230,7 +438,7 @@ export default function PDV() {
             </div>
 
             <button 
-              onClick={handleCheckout}
+              onClick={() => void handleCheckout()}
               disabled={cart.length === 0}
               className="w-full py-4 bg-primary text-white rounded-2xl text-sm font-black uppercase tracking-widest glow-primary hover:scale-[1.02] transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >

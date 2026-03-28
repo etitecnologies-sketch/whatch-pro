@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Client, Employee, Product, Project, Transaction, FiscalDocument, Quotation, ServiceOrder, ServiceOrderType, StockMovement } from '../types';
+import type { Client, Employee, Product, Project, Transaction, FiscalDocument, Quotation, ServiceOrder, ServiceOrderType, StockMovement, Sale } from '../types';
 import { useAuth } from './useAuth';
 import { supabase } from '../lib/supabase';
 import { AsaasService } from '../lib/asaas';
@@ -11,6 +11,7 @@ export function useData() {
   const [products, setProducts] = useState<Product[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
   const [fiscalDocuments, setFiscalDocuments] = useState<FiscalDocument[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,6 +55,7 @@ export function useData() {
     setProducts(JSON.parse(localStorage.getItem(`products_${tId}`) || '[]'));
     setProjects(JSON.parse(localStorage.getItem(`projects_${tId}`) || '[]'));
     setTransactions(JSON.parse(localStorage.getItem(`transactions_${tId}`) || '[]'));
+    setSales(JSON.parse(localStorage.getItem(`sales_${tId}`) || '[]'));
     setFiscalDocuments(JSON.parse(localStorage.getItem(`fiscal_documents_${tId}`) || '[]'));
     setQuotations(JSON.parse(localStorage.getItem(`quotations_${tId}`) || '[]'));
     setServiceOrders(JSON.parse(localStorage.getItem(`service_orders_${tId}`) || '[]'));
@@ -79,6 +81,7 @@ export function useData() {
       let queryProducts = supabase.from('products').select('*');
       let queryProjects = supabase.from('projects').select('*');
       let queryTransactions = supabase.from('transactions').select('*');
+      let querySales = supabase.from('sales').select('*');
       let queryFiscal = supabase.from('fiscal_documents').select('*');
       let queryQuotations = supabase.from('quotations').select('*');
       let queryServiceOrders = supabase.from('service_orders').select('*');
@@ -91,6 +94,7 @@ export function useData() {
         queryProducts = queryProducts.eq('admin_id', tenantId);
         queryProjects = queryProjects.eq('admin_id', tenantId);
         queryTransactions = queryTransactions.eq('admin_id', tenantId);
+        querySales = querySales.eq('admin_id', tenantId);
         queryFiscal = queryFiscal.eq('admin_id', tenantId);
         queryQuotations = queryQuotations.eq('admin_id', tenantId);
         queryServiceOrders = queryServiceOrders.eq('admin_id', tenantId);
@@ -102,6 +106,7 @@ export function useData() {
         { data: productsData },
         { data: projectsData },
         { data: transactionsData },
+        { data: salesData },
         { data: fiscalDocumentsData },
         { data: quotationsData },
         { data: serviceOrdersData }
@@ -111,6 +116,7 @@ export function useData() {
         queryProducts,
         queryProjects,
         queryTransactions,
+        querySales,
         queryFiscal,
         queryQuotations,
         queryServiceOrders
@@ -162,6 +168,19 @@ export function useData() {
             delete mapped.access_key;
           }
 
+          if (table === 'sales') {
+            if (mapped.client_name) mapped.clientName = mapped.client_name;
+            if (mapped.payment_method) mapped.paymentMethod = mapped.payment_method;
+            if (mapped.cash_received !== undefined) mapped.cashReceived = mapped.cash_received;
+            if (mapped.change_amount !== undefined) mapped.changeAmount = mapped.change_amount;
+            if (mapped.created_at) mapped.createdAt = mapped.created_at;
+            delete mapped.client_name;
+            delete mapped.payment_method;
+            delete mapped.cash_received;
+            delete mapped.change_amount;
+            delete mapped.created_at;
+          }
+
           return mapped;
         };
 
@@ -190,6 +209,11 @@ export function useData() {
         setTransactions(mapped); 
         saveLocalData(tenantId, 'transactions', mapped); 
       }
+      if (salesData && salesData.length > 0) {
+        const mapped = salesData.map(d => mapFromDB(d, 'sales'));
+        setSales(mapped);
+        saveLocalData(tenantId, 'sales', mapped);
+      }
       if (fiscalDocumentsData && fiscalDocumentsData.length > 0) { 
         const mapped = fiscalDocumentsData.map(d => mapFromDB(d, 'fiscal_documents'));
         setFiscalDocuments(mapped); 
@@ -214,7 +238,7 @@ export function useData() {
     } finally {
       setIsSyncing(false);
     }
-  }, [hasSupabase, user, saveLocalData]);
+  }, [hasSupabase, tenantId, user, saveLocalData]);
 
   // Initial load
   useEffect(() => {
@@ -322,6 +346,7 @@ export function useData() {
         case 'products': setProducts(data); break;
         case 'projects': setProjects(data); break;
         case 'transactions': setTransactions(data); break;
+        case 'sales': setSales(data); break;
         case 'fiscal_documents': setFiscalDocuments(data); break;
         case 'quotations': setQuotations(data); break;
         case 'service_orders': setServiceOrders(data); break;
@@ -330,7 +355,7 @@ export function useData() {
     }
 
     // 2. Sync with Cloud (Supabase) if available
-    const syncableTables = ['clients', 'employees', 'products', 'projects', 'transactions', 'fiscal_documents', 'quotations', 'service_orders'];
+    const syncableTables = ['clients', 'employees', 'products', 'projects', 'transactions', 'sales', 'fiscal_documents', 'quotations', 'service_orders'];
     if (hasSupabase && user && user.email !== 'mestre@whatchpro.com' && syncableTables.includes(table)) {
       try {
         // Map frontend camelCase to database snake_case
@@ -413,6 +438,29 @@ export function useData() {
             if (mapped.validUntil) {
               mapped.valid_until = mapped.validUntil;
               delete mapped.validUntil;
+            }
+            if (mapped.createdAt) {
+              mapped.created_at = mapped.createdAt;
+              delete mapped.createdAt;
+            }
+          }
+
+          if (table === 'sales') {
+            if (mapped.clientName) {
+              mapped.client_name = mapped.clientName;
+              delete mapped.clientName;
+            }
+            if (mapped.paymentMethod) {
+              mapped.payment_method = mapped.paymentMethod;
+              delete mapped.paymentMethod;
+            }
+            if (mapped.cashReceived !== undefined) {
+              mapped.cash_received = mapped.cashReceived;
+              delete mapped.cashReceived;
+            }
+            if (mapped.changeAmount !== undefined) {
+              mapped.change_amount = mapped.changeAmount;
+              delete mapped.changeAmount;
             }
             if (mapped.createdAt) {
               mapped.created_at = mapped.createdAt;
@@ -553,6 +601,19 @@ export function useData() {
     });
   }, [saveData]);
 
+  const addSale = useCallback((s: Omit<Sale, 'id' | 'userId' | 'adminId' | 'createdAt'>) => {
+    if (!user || !tenantId) return null;
+    const newSale: Sale = {
+      id: crypto.randomUUID(),
+      userId: user.id,
+      adminId: tenantId,
+      createdAt: new Date().toISOString(),
+      ...s
+    };
+    void saveData('sales', [...sales, newSale]);
+    return newSale;
+  }, [saveData, sales, tenantId, user]);
+
   const addTransaction = useCallback((t: Omit<Transaction, 'id' | 'userId' | 'adminId'>) => {
     if (!user || !tenantId) return;
     const newTransaction: Transaction = {
@@ -655,7 +716,10 @@ export function useData() {
     employees, setEmployees: (data: Employee[]) => saveData('employees', data),
     products, setProducts: (data: Product[]) => saveData('products', data),
     updateProduct,
+    sales, setSales: (data: Sale[]) => saveData('sales', data),
+    addSale,
     stockMovements, setStockMovements: (data: StockMovement[]) => saveData('stock_movements', data),
+    addStockMovements,
     deductStockForServiceOrder,
     restockForServiceOrder,
     projects, setProjects: (data: Project[]) => saveData('projects', data),
