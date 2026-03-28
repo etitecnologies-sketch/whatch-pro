@@ -120,9 +120,20 @@ export default function Settings() {
         setIsLoadingTenant(true)
         setTenantOptionsError('')
         try {
-          const { data: sessionData } = await supabase.auth.getSession()
-          const accessToken = sessionData.session?.access_token
-          if (!accessToken) throw new Error('Sessão expirada. Faça login novamente.')
+          const getAccessToken = async () => {
+            let { data: sessionData } = await supabase.auth.getSession()
+            let accessToken = sessionData.session?.access_token
+            if (accessToken) return accessToken
+            await supabase.auth.refreshSession()
+            sessionData = (await supabase.auth.getSession()).data
+            accessToken = sessionData.session?.access_token
+            if (accessToken) return accessToken
+            await supabase.auth.signOut().catch(() => null)
+            localStorage.removeItem('whatch_pro_user')
+            throw new Error('Sessão expirada. Faça login novamente.')
+          }
+
+          const accessToken = await getAccessToken()
 
           const load = async () => {
             const { data, error } = await supabase.functions.invoke('user-admin', {
@@ -178,9 +189,20 @@ export default function Settings() {
 
         let tenant: any = null
         if (shouldUseEdge) {
-          const { data: sessionData } = await supabase.auth.getSession()
-          const accessToken = sessionData.session?.access_token
-          if (!accessToken) throw new Error('Sessão expirada. Faça login novamente.')
+          const getAccessToken = async () => {
+            let { data: sessionData } = await supabase.auth.getSession()
+            let accessToken = sessionData.session?.access_token
+            if (accessToken) return accessToken
+            await supabase.auth.refreshSession()
+            sessionData = (await supabase.auth.getSession()).data
+            accessToken = sessionData.session?.access_token
+            if (accessToken) return accessToken
+            await supabase.auth.signOut().catch(() => null)
+            localStorage.removeItem('whatch_pro_user')
+            throw new Error('Sessão expirada. Faça login novamente.')
+          }
+
+          const accessToken = await getAccessToken()
           const { data, error } = await supabase.functions.invoke('user-admin', {
             body: { action: 'tenant_get', tenantId: selectedTenantId },
             headers: { Authorization: `Bearer ${accessToken}` },
@@ -684,9 +706,20 @@ export default function Settings() {
                     }
                     setIsSavingTenant(true)
                     try {
-                      const { data: sessionData } = await supabase.auth.getSession()
-                      const accessToken = sessionData.session?.access_token
-                      if (!accessToken) throw new Error('Sessão expirada. Faça login novamente.')
+                      const getAccessToken = async () => {
+                        let { data: sessionData } = await supabase.auth.getSession()
+                        let accessToken = sessionData.session?.access_token
+                        if (accessToken) return accessToken
+                        await supabase.auth.refreshSession()
+                        sessionData = (await supabase.auth.getSession()).data
+                        accessToken = sessionData.session?.access_token
+                        if (accessToken) return accessToken
+                        await supabase.auth.signOut().catch(() => null)
+                        localStorage.removeItem('whatch_pro_user')
+                        throw new Error('Sessão expirada. Faça login novamente.')
+                      }
+
+                      const accessToken = await getAccessToken()
 
                       const nextCompanyType = normalizeCompanyType(tenantForm.companyType) || 'todos'
                       const nextFeatures =

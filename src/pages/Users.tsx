@@ -114,9 +114,20 @@ export default function Users() {
     }
 
     const invokeOnce = async () => {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const accessToken = sessionData.session?.access_token
-      if (!accessToken) throw new Error('Sessão expirada. Faça login novamente.')
+      const getAccessToken = async () => {
+        let { data: sessionData } = await supabase.auth.getSession()
+        let accessToken = sessionData.session?.access_token
+        if (accessToken) return accessToken
+        await supabase.auth.refreshSession()
+        sessionData = (await supabase.auth.getSession()).data
+        accessToken = sessionData.session?.access_token
+        if (accessToken) return accessToken
+        await supabase.auth.signOut().catch(() => null)
+        localStorage.removeItem('whatch_pro_user')
+        throw new Error('Sessão expirada. Faça login novamente.')
+      }
+
+      const accessToken = await getAccessToken()
       const { data, error } = await supabase.functions.invoke('user-admin', {
         body,
         headers: { Authorization: `Bearer ${accessToken}` },
