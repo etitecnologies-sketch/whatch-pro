@@ -30,6 +30,35 @@ Crie propostas comerciais profissionais em segundos.
 - **Validade e Notas**: Defina prazos de validade e adicione observações personalizadas para o cliente.
 - **Status de Negociação**: Acompanhe se o orçamento está como Rascunho, Enviado, Aprovado ou Recusado.
 
+## 5. PDV (Frente de Caixa)
+Tela de venda rápida para **Supermercado** e negócios com atendimento de balcão.
+- **Busca/Bipagem**: digite o nome/SKU ou use leitor (código de barras via campo de busca).
+- **Quantidade rápida**: no campo de busca use `3x123` (quantidade x SKU) e pressione Enter.
+- **Carrinho**: ajuste quantidades, remova itens e finalize a venda.
+- **Pagamento**: Pix, Crédito, Débito ou Dinheiro (com cálculo de troco).
+- **Histórico**: acesse o histórico de vendas, visualize itens e faça estorno quando necessário.
+- **Impressão**: imprima o cupom no checkout e faça segunda via no histórico.
+- **Logo do cliente no PDV**: se quiser mostrar a logo do cliente, configure em **Configurações → SEFAZ → Logo (URL)** e ative o botão **Logo** no PDV.
+
+### 5.1 Atalhos do PDV (Teclado)
+- **F2**: focar na busca
+- **F4**: limpar cupom (carrinho + cliente + recebido)
+- **F6**: abrir/fechar histórico
+- **F7**: pagamento Pix
+- **F8**: pagamento Dinheiro
+- **F9 / Enter**: finalizar venda
+- **F10**: pagamento Crédito
+- **F11**: pagamento Débito
+- **↑ / ↓**: selecionar item do carrinho
+- **+ / -**: aumentar/diminuir quantidade do item selecionado
+- **Delete**: remover item selecionado
+- **Esc**: sair do histórico
+
+### 5.2 Estorno de Venda
+No **Histórico de Vendas (PDV)** você pode estornar uma venda.
+- O estorno **devolve o estoque** dos itens da venda.
+- O sistema registra um **movimento de estoque** de estorno e cria um lançamento financeiro em **Estornos**.
+
 ## 5. Usuários e Permissões
 Segurança e hierarquia para sua equipe.
 - **Admin vs Sub-usuário**: Administradores podem criar sua própria equipe.

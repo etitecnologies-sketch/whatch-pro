@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, Search, User, CheckCircle2, History, Image, ArrowLeft } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, Search, User, CheckCircle2, History, Image, ArrowLeft, Printer } from 'lucide-react'
 import { useData } from '../hooks/useData'
 import { useAuth } from '../hooks/useAuth'
 import { Product } from '../types'
@@ -20,8 +20,10 @@ export default function PDV() {
   const [historySearch, setHistorySearch] = useState('')
   const [expandedSaleId, setExpandedSaleId] = useState<string>('')
   const [showLogo, setShowLogo] = useState<boolean>(true)
+  const [autoPrint, setAutoPrint] = useState<boolean>(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const historyInputRef = useRef<HTMLInputElement>(null)
+  const cashInputRef = useRef<HTMLInputElement>(null)
 
   const tenantId = user ? (user.adminId || user.id) : ''
   const logoUrl = configuracaoSEFAZ?.logoUrl || ''
@@ -37,6 +39,18 @@ export default function PDV() {
     if (!tenantId) return
     localStorage.setItem(`pdv_show_logo_${tenantId}`, String(showLogo))
   }, [showLogo, tenantId])
+
+  useEffect(() => {
+    if (!tenantId) return
+    const saved = localStorage.getItem(`pdv_auto_print_${tenantId}`)
+    if (saved === null) return
+    setAutoPrint(saved === 'true')
+  }, [tenantId])
+
+  useEffect(() => {
+    if (!tenantId) return
+    localStorage.setItem(`pdv_auto_print_${tenantId}`, String(autoPrint))
+  }, [autoPrint, tenantId])
 
   // Filter out products with 0 quantity and match search term
   const availableProducts = useMemo(() => {
@@ -110,6 +124,52 @@ export default function PDV() {
         return
       }
 
+      if (e.key === 'Escape') {
+        if (viewMode === 'history') {
+          e.preventDefault()
+          setExpandedSaleId('')
+          setViewMode('checkout')
+        }
+        return
+      }
+
+      if (viewMode === 'history') return
+
+      if (e.key === 'F7') {
+        e.preventDefault()
+        setPaymentMethod('pix')
+        setPdvMessage({ type: 'success', text: 'Pagamento: PIX' })
+        return
+      }
+
+      if (e.key === 'F8') {
+        e.preventDefault()
+        setPaymentMethod('money')
+        setPdvMessage({ type: 'success', text: 'Pagamento: Dinheiro' })
+        setTimeout(() => cashInputRef.current?.focus(), 0)
+        return
+      }
+
+      if (e.key === 'F10') {
+        e.preventDefault()
+        setPaymentMethod('credit')
+        setPdvMessage({ type: 'success', text: 'Pagamento: Crédito' })
+        return
+      }
+
+      if (e.key === 'F11') {
+        e.preventDefault()
+        setPaymentMethod('debit')
+        setPdvMessage({ type: 'success', text: 'Pagamento: Débito' })
+        return
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        void handleCheckout()
+        return
+      }
+
       if (e.key === 'F9') {
         e.preventDefault()
         void handleCheckout()
@@ -161,7 +221,7 @@ export default function PDV() {
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [cart, selectedCartIndex, paymentMethod, cashReceivedValue, total, selectedClient, clients, user])
+  }, [cart, selectedCartIndex, paymentMethod, cashReceivedValue, total, selectedClient, clients, user, viewMode])
 
   useEffect(() => {
     if (viewMode === 'checkout') {
@@ -170,6 +230,102 @@ export default function PDV() {
       historyInputRef.current?.focus()
     }
   }, [viewMode])
+
+  const escapeHtml = (input: unknown) => {
+    return String(input ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;')
+  }
+
+  const printSaleReceipt = (sale: any) => {
+    const saleId = String(sale?.id || '')
+    const saleShort = saleId.slice(0, 8).toUpperCase()
+    const createdAt = sale?.createdAt ? new Date(sale.createdAt) : new Date()
+    const items = Array.isArray(sale?.items) ? sale.items : []
+    const companyName = configuracaoSEFAZ?.nomeFantasia || configuracaoSEFAZ?.razaoSocial || ''
+    const companyDoc = configuracaoSEFAZ?.cnpj || ''
+
+    const headerLogo = logoUrl && showLogo
+      ? `<div style="display:flex;justify-content:center;margin-bottom:10px;"><img src="${escapeHtml(logoUrl)}" style="max-height:70px;max-width:220px;object-fit:contain;" /></div>`
+      : ''
+
+    const lineItems = items.map((i: any) => {
+      const name = escapeHtml(i?.name || '')
+      const sku = i?.sku ? escapeHtml(i.sku) : ''
+      const qty = Number(i?.quantity || 0)
+      const unit = Number(i?.unitPrice || 0)
+      const total = Number(i?.total || 0)
+      return `
+        <div style="margin:10px 0;">
+          <div style="font-weight:700;">${name}</div>
+          <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;">
+            <div>${sku ? `${sku} • ` : ''}${qty}x ${unit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+            <div style="font-weight:700;">${total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+          </div>
+        </div>
+      `
+    }).join('')
+
+    const pm = formatPayment(sale?.paymentMethod)
+    const totalValue = Number(sale?.total || 0)
+    const cashReceived = Number(sale?.cashReceived || 0)
+    const changeAmount = Number(sale?.changeAmount || 0)
+
+    const moneyLines = sale?.paymentMethod === 'money'
+      ? `
+        <div style="display:flex;justify-content:space-between;font-size:12px;"><div>Recebido</div><div>${cashReceived.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;"><div>Troco</div><div>${changeAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div></div>
+      `
+      : ''
+
+    const status = (sale?.status || 'completed') === 'voided' ? 'ESTORNADA' : 'CONCLUÍDA'
+
+    const html = `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>Cupom PDV #${escapeHtml(saleShort)}</title>
+          <style>
+            @media print { body { margin: 0; } }
+          </style>
+        </head>
+        <body style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; padding: 18px; color: #111;">
+          ${headerLogo}
+          <div style="text-align:center;">
+            ${companyName ? `<div style="font-weight:900;font-size:14px;">${escapeHtml(companyName)}</div>` : ''}
+            ${companyDoc ? `<div style="font-size:12px;">${escapeHtml(companyDoc)}</div>` : ''}
+            <div style="font-size:12px;margin-top:6px;">Cupom PDV #${escapeHtml(saleShort)}</div>
+            <div style="font-size:12px;">${escapeHtml(createdAt.toLocaleString())}</div>
+            <div style="font-size:12px;margin-top:6px;">Status: ${escapeHtml(status)}</div>
+          </div>
+          <hr style="border:none;border-top:1px dashed #666;margin:14px 0;" />
+          ${lineItems || '<div style="font-size:12px;">(Sem itens)</div>'}
+          <hr style="border:none;border-top:1px dashed #666;margin:14px 0;" />
+          <div style="display:flex;justify-content:space-between;font-size:12px;"><div>Pagamento</div><div>${escapeHtml(pm)}</div></div>
+          ${moneyLines}
+          <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:900;margin-top:10px;"><div>Total</div><div>${totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div></div>
+          <div style="text-align:center;font-size:12px;margin-top:16px;">Obrigado e volte sempre!</div>
+        </body>
+      </html>
+    `
+
+    const w = window.open('', '_blank', 'noopener,noreferrer,width=420,height=800')
+    if (!w) {
+      setPdvMessage({ type: 'error', text: 'Popup bloqueado. Libere para imprimir.' })
+      return
+    }
+    w.document.open()
+    w.document.write(html)
+    w.document.close()
+    w.focus()
+    setTimeout(() => {
+      w.print()
+    }, 250)
+  }
 
   const parseSearchLine = (raw: string) => {
     const v = raw.trim()
@@ -307,6 +463,10 @@ export default function PDV() {
       referenceId: sale.id
     })))
 
+    if (autoPrint) {
+      printSaleReceipt(sale)
+    }
+
     setCart([])
     setSelectedClient('')
     setCashReceived('')
@@ -346,6 +506,15 @@ export default function PDV() {
       return
     }
     setPdvMessage({ type: 'success', text: 'Venda estornada.' })
+  }
+
+  const handlePrintSale = (saleId: string) => {
+    const sale = sales.find((s: any) => String(s.id) === String(saleId))
+    if (!sale) {
+      setPdvMessage({ type: 'error', text: 'Venda não encontrada.' })
+      return
+    }
+    printSaleReceipt(sale)
   }
 
   if (viewMode === 'history') {
@@ -424,6 +593,14 @@ export default function PDV() {
                           className="px-4 py-2 rounded-xl border border-white/10 bg-slate-950/40 hover:bg-white/5 transition-all text-[10px] font-black uppercase tracking-widest text-white"
                         >
                           {isExpanded ? 'Ocultar Itens' : 'Ver Itens'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handlePrintSale(saleId)}
+                          className="px-4 py-2 rounded-xl border border-white/10 bg-slate-900/40 hover:bg-white/5 transition-all text-[10px] font-black uppercase tracking-widest text-white flex items-center justify-center gap-2"
+                        >
+                          <Printer size={14} />
+                          Imprimir
                         </button>
                         <button
                           type="button"
@@ -518,6 +695,15 @@ export default function PDV() {
                 Logo
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setAutoPrint(v => !v)}
+              className={`px-4 py-2 rounded-xl border transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${autoPrint ? 'bg-primary/20 border-primary text-primary' : 'bg-slate-900/50 border-white/5 text-slate-300 hover:bg-white/5'}`}
+              title="Imprimir automaticamente ao finalizar"
+            >
+              <Printer size={14} />
+              Auto
+            </button>
             <button
               type="button"
               onClick={() => setViewMode('history')}
@@ -652,6 +838,7 @@ export default function PDV() {
                     type="text"
                     value={cashReceived}
                     onChange={e => setCashReceived(e.target.value)}
+                    ref={cashInputRef}
                     className="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm font-bold text-white"
                     placeholder="0,00"
                   />
