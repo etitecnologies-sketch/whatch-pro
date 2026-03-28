@@ -18,7 +18,8 @@ export default function Users() {
   const { transactions } = useData()
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [users, setUsers] = useState<User[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false)
+  const [isSavingUser, setIsSavingUser] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isReportsModalOpen, setIsReportsModalOpen] = useState(false)
@@ -197,7 +198,7 @@ export default function Users() {
 
   const loadUsers = async () => {
     if (!currentUser) return
-    setIsLoading(true)
+    setIsLoadingUsers(true)
     try {
       if (hasSupabase) {
         const data = await callUserAdmin({ action: 'list' })
@@ -220,7 +221,7 @@ export default function Users() {
       setAllUsers(localUsers)
       setUsers(filterVisibleUsers(localUsers, currentUser))
     } finally {
-      setIsLoading(false)
+      setIsLoadingUsers(false)
     }
   }
 
@@ -269,8 +270,11 @@ export default function Users() {
   }
 
   const handleSave = async () => {
-    if (!currentUser) return
-    setIsLoading(true)
+    if (!currentUser) {
+      alert('Sua sessão ainda está carregando. Aguarde 2 segundos e tente novamente.')
+      return
+    }
+    setIsSavingUser(true)
 
     try {
       if (editingUser) {
@@ -345,7 +349,7 @@ export default function Users() {
       console.error(error)
       alert('Erro ao salvar usuário: ' + (error as any).message)
     } finally {
-      setIsLoading(false)
+      setIsSavingUser(false)
     }
   }
 
@@ -861,10 +865,10 @@ export default function Users() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={isLoading}
+                disabled={isSavingUser}
                 className="flex-1 px-6 py-3 bg-primary text-white font-black rounded-2xl glow-primary hover:scale-105 transition-all text-sm shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isLoading && <Loader2 className="animate-spin" size={18} />}
+                {isSavingUser && <Loader2 className="animate-spin" size={18} />}
                 {editingUser ? 'Salvar Alterações' : 'Criar Usuário'}
               </button>
             </div>
