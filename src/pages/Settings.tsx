@@ -605,7 +605,8 @@ export default function Settings() {
         {
         const isMaster = user?.email === 'mestre@whatchpro.com'
         const isRootAdmin = user?.role === 'admin' && !user?.adminId
-        const canEditTenant = Boolean(isMaster || isRootAdmin)
+        const hasSelectedTenant = Boolean(selectedTenantId)
+        const canEditTenant = Boolean((isMaster || isRootAdmin) && hasSelectedTenant)
         const normalizedCompanyType = normalizeCompanyType(tenantForm.companyType) || 'todos'
         const effectiveFeatures = (tenantForm.features && tenantForm.features.length > 0)
           ? tenantForm.features
@@ -620,7 +621,7 @@ export default function Settings() {
                   <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Dados da Empresa</p>
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
                     {user?.email === 'mestre@whatchpro.com'
-                      ? 'Selecione uma empresa para editar os dados cadastrais.'
+                      ? (tenantOptions.length > 0 ? 'Selecione uma empresa para editar os dados cadastrais.' : 'Nenhuma empresa cadastrada ainda. Crie um Admin Master em Usuários para gerar a empresa.')
                       : 'Somente Admin pode editar. Sub-usuário visualiza os dados.'}
                   </p>
                 </div>
@@ -633,7 +634,10 @@ export default function Settings() {
                       alert('Apenas o Administrador da empresa ou o Mestre podem editar.')
                       return
                     }
-                    if (!selectedTenantId) return
+                    if (!selectedTenantId) {
+                      alert('Nenhuma empresa selecionada. Se você ainda não tem empresas, crie um Admin Master em Usuários (Nova Empresa).')
+                      return
+                    }
                     setIsSavingTenant(true)
                     try {
                       const nextCompanyType = normalizeCompanyType(tenantForm.companyType) || 'todos'
@@ -668,10 +672,10 @@ export default function Settings() {
                       setIsSavingTenant(false)
                     }
                   }}
-                  disabled={isSavingTenant || isLoadingTenant}
+                  disabled={!canEditTenant || isSavingTenant || isLoadingTenant}
                   className={cn(
                     "px-5 py-3 font-black rounded-2xl transition-all flex items-center gap-2 shadow-lg",
-                    isSavingTenant || isLoadingTenant
+                    !canEditTenant || isSavingTenant || isLoadingTenant
                       ? "bg-slate-200 dark:bg-slate-800 text-slate-500 cursor-not-allowed"
                       : "bg-primary text-white glow-primary shadow-primary/20 hover:scale-105"
                   )}
@@ -691,6 +695,9 @@ export default function Settings() {
                       onChange={e => setSelectedTenantId(e.target.value)}
                       className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner appearance-none"
                     >
+                      {tenantOptions.length === 0 && (
+                        <option value="">Nenhuma empresa cadastrada</option>
+                      )}
                       {tenantOptions.map(t => (
                         <option key={t.id} value={t.id}>{t.name}</option>
                       ))}
