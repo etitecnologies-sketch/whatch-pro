@@ -205,7 +205,8 @@ serve(async (req) => {
     if (authError || !authData?.user) {
       const tokenRole = typeof (tokenPayload as any)?.role === "string" ? String((tokenPayload as any).role) : null
       const tokenIss = typeof (tokenPayload as any)?.iss === "string" ? String((tokenPayload as any).iss) : null
-      return new Response(JSON.stringify({ error: "Unauthorized", tokenRole, tokenIss }), {
+      const serverExpectedIss = `${String(supabaseUrl || "").replace(/\/$/, "")}/auth/v1`
+      return new Response(JSON.stringify({ error: "Unauthorized", tokenRole, tokenIss, serverExpectedIss }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
