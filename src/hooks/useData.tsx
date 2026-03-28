@@ -55,7 +55,8 @@ export function useData() {
     setProducts(JSON.parse(localStorage.getItem(`products_${tId}`) || '[]'));
     setProjects(JSON.parse(localStorage.getItem(`projects_${tId}`) || '[]'));
     setTransactions(JSON.parse(localStorage.getItem(`transactions_${tId}`) || '[]'));
-    setSales(JSON.parse(localStorage.getItem(`sales_${tId}`) || '[]'));
+    const rawSales = JSON.parse(localStorage.getItem(`sales_${tId}`) || '[]');
+    setSales(Array.isArray(rawSales) ? rawSales.map((s: any) => ({ status: 'completed', ...s })) : []);
     setFiscalDocuments(JSON.parse(localStorage.getItem(`fiscal_documents_${tId}`) || '[]'));
     setQuotations(JSON.parse(localStorage.getItem(`quotations_${tId}`) || '[]'));
     setServiceOrders(JSON.parse(localStorage.getItem(`service_orders_${tId}`) || '[]'));
@@ -174,11 +175,15 @@ export function useData() {
             if (mapped.cash_received !== undefined) mapped.cashReceived = mapped.cash_received;
             if (mapped.change_amount !== undefined) mapped.changeAmount = mapped.change_amount;
             if (mapped.created_at) mapped.createdAt = mapped.created_at;
+            if (mapped.voided_at) mapped.voidedAt = mapped.voided_at;
+            if (mapped.void_reason) mapped.voidReason = mapped.void_reason;
             delete mapped.client_name;
             delete mapped.payment_method;
             delete mapped.cash_received;
             delete mapped.change_amount;
             delete mapped.created_at;
+            delete mapped.voided_at;
+            delete mapped.void_reason;
           }
 
           return mapped;
@@ -210,7 +215,7 @@ export function useData() {
         saveLocalData(tenantId, 'transactions', mapped); 
       }
       if (salesData && salesData.length > 0) {
-        const mapped = salesData.map(d => mapFromDB(d, 'sales'));
+        const mapped = salesData.map(d => ({ status: 'completed', ...mapFromDB(d, 'sales') }));
         setSales(mapped);
         saveLocalData(tenantId, 'sales', mapped);
       }
@@ -466,6 +471,14 @@ export function useData() {
               mapped.created_at = mapped.createdAt;
               delete mapped.createdAt;
             }
+            if (mapped.voidedAt) {
+              mapped.voided_at = mapped.voidedAt;
+              delete mapped.voidedAt;
+            }
+            if (mapped.voidReason !== undefined) {
+              mapped.void_reason = mapped.voidReason;
+              delete mapped.voidReason;
+            }
           }
           
           return mapped;
@@ -601,13 +614,14 @@ export function useData() {
     });
   }, [saveData]);
 
-  const addSale = useCallback((s: Omit<Sale, 'id' | 'userId' | 'adminId' | 'createdAt'>) => {
+  const addSale = useCallback((s: Omit<Sale, 'id' | 'userId' | 'adminId' | 'createdAt' | 'status' | 'voidedAt' | 'voidReason'>) => {
     if (!user || !tenantId) return null;
     const newSale: Sale = {
       id: crypto.randomUUID(),
       userId: user.id,
       adminId: tenantId,
       createdAt: new Date().toISOString(),
+      status: 'completed',
       ...s
     };
     void saveData('sales', [...sales, newSale]);
@@ -641,6 +655,43 @@ export function useData() {
     }));
     await saveData('stock_movements', [...stockMovements, ...next]);
   }, [saveData, stockMovements, tenantId, user]);
+
+  const voidSale = useCallback(async (saleId: string, reason?: string) => {
+    if (!user || !tenantId) return { ok: false as const, error: 'Autenticação necessária.' };
+    const sale = sales.find(s => s.id === saleId);
+    if (!sale) return { ok: false as const, error: 'Venda não encontrada.' };
+    if (sale.status === 'voided') return { ok: false as const, error: 'Venda já estornada.' };
+
+    const nextSales = sales.map(s => s.id === saleId ? { ...s, status: 'voided', voidedAt: new Date().toISOString(), voidReason: reason || null } as any : s);
+    await saveData('sales', nextSales);
+
+    const updatedProducts = products.map(p => {
+      const used = sale.items.find(i => i.productId === p.id);
+      if (!used) return p;
+      return { ...p, quantity: p.quantity + used.quantity };
+    });
+    await saveData('products', updatedProducts);
+
+    await addStockMovements(sale.items.map(i => ({
+      productId: i.productId,
+      quantityChange: Math.abs(i.quantity),
+      reason: `Estorno PDV #${sale.id.slice(0, 8).toUpperCase()}`,
+      referenceType: 'pdv',
+      referenceId: sale.id
+    })));
+
+    addTransaction({
+      description: `Estorno PDV #${sale.id.slice(0, 8).toUpperCase()} - ${sale.clientName}`,
+      amount: sale.total,
+      type: 'expense',
+      category: 'Estornos',
+      date: new Date().toISOString(),
+      status: 'completed',
+      userId: user.id
+    } as any);
+
+    return { ok: true as const };
+  }, [addStockMovements, addTransaction, products, sales, saveData, tenantId, user]);
 
   const deductStockForServiceOrder = useCallback(async (os: ServiceOrder) => {
     if (!user || !tenantId) return { ok: false as const, error: 'Autenticação necessária.' };
@@ -718,6 +769,7 @@ export function useData() {
     updateProduct,
     sales, setSales: (data: Sale[]) => saveData('sales', data),
     addSale,
+    voidSale,
     stockMovements, setStockMovements: (data: StockMovement[]) => saveData('stock_movements', data),
     addStockMovements,
     deductStockForServiceOrder,

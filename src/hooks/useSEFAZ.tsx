@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { ConfiguracaoSEFAZ, CertificadoDigital } from '../types';
 import { useAuth } from './useAuth';
 
@@ -20,6 +20,19 @@ export function useSEFAZ() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setConfiguracaoSEFAZ(null);
+      setCertificados([]);
+      return;
+    }
+    const tId = user.adminId || user.id;
+    const savedCfg = localStorage.getItem(`sefaz_config_${tId}`);
+    setConfiguracaoSEFAZ(savedCfg ? JSON.parse(savedCfg) : null);
+    const savedCerts = localStorage.getItem(`certificados_${tId}`);
+    setCertificados(savedCerts ? JSON.parse(savedCerts) : []);
+  }, [user]);
 
   /**
    * Salva configuração SEFAZ

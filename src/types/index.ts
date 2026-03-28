@@ -134,6 +134,9 @@ export interface Sale {
   total: number;
   items: SaleItem[];
   createdAt: string;
+  status: 'completed' | 'voided';
+  voidedAt?: string;
+  voidReason?: string;
 }
 
 export interface ServiceOrder {

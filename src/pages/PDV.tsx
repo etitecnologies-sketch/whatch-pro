@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, Search, User, CheckCircle2 } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, Search, User, CheckCircle2, History, Image, ArrowLeft } from 'lucide-react'
 import { useData } from '../hooks/useData'
 import { useAuth } from '../hooks/useAuth'
 import { Product } from '../types'
+import { useSEFAZ } from '../hooks/useSEFAZ'
 
 export default function PDV() {
-  const { products, clients, addTransaction, addSale, addStockMovements, updateProduct } = useData()
+  const { products, clients, sales, addTransaction, addSale, voidSale, addStockMovements, updateProduct } = useData()
   const { user } = useAuth()
+  const { configuracaoSEFAZ } = useSEFAZ()
   const [cart, setCart] = useState<Array<{ product: Product; quantity: number }>>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedClient, setSelectedClient] = useState<string>('')
@@ -14,7 +16,27 @@ export default function PDV() {
   const [cashReceived, setCashReceived] = useState<string>('')
   const [selectedCartIndex, setSelectedCartIndex] = useState<number>(-1)
   const [pdvMessage, setPdvMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [viewMode, setViewMode] = useState<'checkout' | 'history'>('checkout')
+  const [historySearch, setHistorySearch] = useState('')
+  const [expandedSaleId, setExpandedSaleId] = useState<string>('')
+  const [showLogo, setShowLogo] = useState<boolean>(true)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const historyInputRef = useRef<HTMLInputElement>(null)
+
+  const tenantId = user ? (user.adminId || user.id) : ''
+  const logoUrl = configuracaoSEFAZ?.logoUrl || ''
+
+  useEffect(() => {
+    if (!tenantId) return
+    const saved = localStorage.getItem(`pdv_show_logo_${tenantId}`)
+    if (saved === null) return
+    setShowLogo(saved === 'true')
+  }, [tenantId])
+
+  useEffect(() => {
+    if (!tenantId) return
+    localStorage.setItem(`pdv_show_logo_${tenantId}`, String(showLogo))
+  }, [showLogo, tenantId])
 
   // Filter out products with 0 quantity and match search term
   const availableProducts = useMemo(() => {
@@ -82,6 +104,12 @@ export default function PDV() {
         return
       }
 
+      if (e.key === 'F6') {
+        e.preventDefault()
+        setViewMode(m => (m === 'checkout' ? 'history' : 'checkout'))
+        return
+      }
+
       if (e.key === 'F9') {
         e.preventDefault()
         void handleCheckout()
@@ -134,6 +162,14 @@ export default function PDV() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [cart, selectedCartIndex, paymentMethod, cashReceivedValue, total, selectedClient, clients, user])
+
+  useEffect(() => {
+    if (viewMode === 'checkout') {
+      searchInputRef.current?.focus()
+    } else {
+      historyInputRef.current?.focus()
+    }
+  }, [viewMode])
 
   const parseSearchLine = (raw: string) => {
     const v = raw.trim()
@@ -279,32 +315,231 @@ export default function PDV() {
     searchInputRef.current?.focus()
   }
 
+  const visibleSales = useMemo(() => {
+    const normalize = (v: unknown) => String(v || '').trim().toLowerCase()
+    const q = normalize(historySearch)
+    const base = [...sales].sort((a: any, b: any) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+    if (!q) return base
+    return base.filter(s => {
+      const clientName = normalize((s as any).clientName)
+      const idShort = String((s as any).id || '').slice(0, 8).toLowerCase()
+      const matchItems = Array.isArray((s as any).items) ? (s as any).items.some((i: any) => normalize(i.name).includes(q) || normalize(i.sku).includes(q)) : false
+      return clientName.includes(q) || idShort.includes(q) || matchItems
+    })
+  }, [historySearch, sales])
+
+  const formatPayment = (pm: any) => {
+    if (pm === 'pix') return 'PIX'
+    if (pm === 'credit') return 'CRÉDITO'
+    if (pm === 'debit') return 'DÉBITO'
+    if (pm === 'money') return 'DINHEIRO'
+    return String(pm || '').toUpperCase()
+  }
+
+  const handleVoidSale = async (saleId: string) => {
+    const ok = window.confirm('Confirmar estorno desta venda? Isso vai devolver o estoque e gerar um lançamento de estorno no financeiro.')
+    if (!ok) return
+    const reason = window.prompt('Motivo do estorno (opcional):') || undefined
+    const res = await voidSale(saleId, reason)
+    if (!res.ok) {
+      setPdvMessage({ type: 'error', text: res.error || 'Não foi possível estornar.' })
+      return
+    }
+    setPdvMessage({ type: 'success', text: 'Venda estornada.' })
+  }
+
+  if (viewMode === 'history') {
+    return (
+      <div className="flex flex-col gap-6 h-[calc(100vh-8rem)]">
+        <div className="glass rounded-3xl p-6 border border-white/10 overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setViewMode('checkout')}
+                className="p-3 rounded-2xl border border-white/10 bg-slate-900/40 hover:bg-white/5 transition-all text-slate-200"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                <History className="text-primary" />
+                Histórico de Vendas (PDV)
+              </h2>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {pdvMessage && (
+                <div className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border ${pdvMessage.type === 'success' ? 'text-green-300 border-green-500/30 bg-green-500/10' : 'text-amber-300 border-amber-500/30 bg-amber-500/10'}`}>
+                  {pdvMessage.text}
+                </div>
+              )}
+              <div className="relative w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Buscar por cliente, item ou #ID"
+                  value={historySearch}
+                  onChange={e => setHistorySearch(e.target.value)}
+                  ref={historyInputRef}
+                  className="w-full pl-10 pr-4 py-2 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm text-white"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
+            {visibleSales.map((s: any) => {
+              const saleId = String(s.id || '')
+              const isExpanded = expandedSaleId === saleId
+              const saleShort = saleId.slice(0, 8).toUpperCase()
+              const status = (s.status || 'completed') as 'completed' | 'voided'
+              const createdAt = s.createdAt ? new Date(s.createdAt) : null
+              return (
+                <div key={saleId} className="p-4 bg-slate-900/40 border border-white/5 rounded-2xl">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-3">
+                        <div className="text-xs font-black text-white">#{saleShort}</div>
+                        <div className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${status === 'voided' ? 'text-amber-300 border-amber-500/30 bg-amber-500/10' : 'text-green-300 border-green-500/30 bg-green-500/10'}`}>
+                          {status === 'voided' ? 'ESTORNADA' : 'CONCLUÍDA'}
+                        </div>
+                      </div>
+                      <div className="text-sm font-bold text-white truncate mt-1">{s.clientName || 'Cliente Balcão'}</div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                        {createdAt ? createdAt.toLocaleString() : ''} • {formatPayment(s.paymentMethod)}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total</div>
+                        <div className="text-lg font-black text-green-400">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(s.total || 0))}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedSaleId(isExpanded ? '' : saleId)}
+                          className="px-4 py-2 rounded-xl border border-white/10 bg-slate-950/40 hover:bg-white/5 transition-all text-[10px] font-black uppercase tracking-widest text-white"
+                        >
+                          {isExpanded ? 'Ocultar Itens' : 'Ver Itens'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleVoidSale(saleId)}
+                          disabled={status === 'voided'}
+                          className="px-4 py-2 rounded-xl border border-white/10 bg-red-500/10 hover:bg-red-500/20 transition-all text-[10px] font-black uppercase tracking-widest text-red-200 disabled:opacity-50 disabled:hover:bg-red-500/10 disabled:cursor-not-allowed"
+                        >
+                          Estornar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
+                      {Array.isArray(s.items) && s.items.map((i: any, idx: number) => (
+                        <div key={`${saleId}-${idx}`} className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-white truncate">{i.name}</div>
+                            <div className="text-[10px] text-slate-400 font-bold">
+                              {i.sku ? `${i.sku} • ` : ''}{i.quantity}x {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(i.unitPrice || 0))}
+                            </div>
+                          </div>
+                          <div className="text-xs font-black text-green-400">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(i.total || 0))}
+                          </div>
+                        </div>
+                      ))}
+                      {s.paymentMethod === 'money' && (
+                        <div className="mt-2 pt-3 border-t border-white/5 grid grid-cols-2 gap-3">
+                          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            Recebido: <span className="text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(s.cashReceived || 0))}</span>
+                          </div>
+                          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
+                            Troco: <span className="text-white">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(s.changeAmount || 0))}</span>
+                          </div>
+                        </div>
+                      )}
+                      {status === 'voided' && (
+                        <div className="mt-2 pt-3 border-t border-white/5 text-[10px] font-bold text-amber-300">
+                          {(s.voidedAt ? `Estornada em ${new Date(s.voidedAt).toLocaleString()}. ` : '')}{s.voidReason ? `Motivo: ${s.voidReason}` : ''}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+            {visibleSales.length === 0 && (
+              <div className="py-12 text-center text-slate-500 text-xs font-medium uppercase tracking-widest">
+                Nenhuma venda encontrada.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8rem)]">
       {/* Products Catalog (Left Side) */}
       <div className="flex-1 flex flex-col glass rounded-3xl p-6 border border-white/10 overflow-hidden">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-black text-white flex items-center gap-3">
-            <ShoppingCart className="text-primary" />
-            Frente de Caixa
-          </h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-black text-white flex items-center gap-3">
+              <ShoppingCart className="text-primary" />
+              Frente de Caixa
+            </h2>
+            {logoUrl && showLogo && (
+              <img
+                src={logoUrl}
+                alt="Logo"
+                className="h-10 w-10 rounded-2xl object-cover border border-white/10 bg-slate-950/40"
+              />
+            )}
+          </div>
           {pdvMessage && (
             <div className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border ${pdvMessage.type === 'success' ? 'text-green-300 border-green-500/30 bg-green-500/10' : 'text-amber-300 border-amber-500/30 bg-amber-500/10'}`}>
               {pdvMessage.text}
             </div>
           )}
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input 
-              type="text" 
-              placeholder="Buscar ou Bipar (SKU/Código)"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              autoFocus
-              ref={searchInputRef}
-              className="w-full pl-10 pr-4 py-2 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm text-white"
-            />
+          <div className="flex items-center gap-3">
+            {logoUrl && (
+              <button
+                type="button"
+                onClick={() => setShowLogo(v => !v)}
+                className={`px-4 py-2 rounded-xl border transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${showLogo ? 'bg-primary/20 border-primary text-primary' : 'bg-slate-900/50 border-white/5 text-slate-300 hover:bg-white/5'}`}
+                title="Mostrar/ocultar logo no PDV"
+              >
+                <Image size={14} />
+                Logo
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setViewMode('history')}
+              className="px-4 py-2 rounded-xl border border-white/10 bg-slate-900/40 hover:bg-white/5 transition-all text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2"
+              title="Histórico (F6)"
+            >
+              <History size={14} />
+              Histórico
+            </button>
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input 
+                type="text" 
+                placeholder="Buscar ou Bipar (SKU/Código)"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                autoFocus
+                ref={searchInputRef}
+                className="w-full pl-10 pr-4 py-2 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm text-white"
+              />
+            </div>
           </div>
         </div>
 
