@@ -51,6 +51,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                      !supabaseUrl.includes('SUA_URL') && 
                      !supabaseUrl.includes('YOUR_URL');
 
+  const enrichUserWithTenant = async (baseUser: User): Promise<User> => {
+    if (!hasSupabase) return baseUser
+    if (baseUser.email === 'mestre@whatchpro.com') return baseUser
+
+    const tenantId = baseUser.adminId || baseUser.id
+    if (!tenantId) return baseUser
+
+    const { data, error } = await supabase
+      .from('tenants')
+      .select('company_type,features')
+      .eq('id', tenantId)
+      .maybeSingle()
+
+    if (error || !data) return baseUser
+
+    const companyTypeFromTenant = normalizeCompanyType(data.company_type)
+    const companyType = companyTypeFromTenant ?? normalizeCompanyType(baseUser.companyType)
+
+    const features =
+      Array.isArray(data.features) && data.features.length > 0
+        ? normalizeFeatures(data.features)
+        : companyType
+          ? getDefaultFeaturesByCompanyType(companyType)
+          : baseUser.features
+
+    return { ...baseUser, companyType: companyType ?? baseUser.companyType, features }
+  }
+
   useEffect(() => {
     const initializeAuth = async () => {
       try {
@@ -64,18 +92,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setUser(null)
               localStorage.removeItem('whatch_pro_user')
             } else {
-            setUser({
-              id: verified.user.id,
-              name: verified.user.user_metadata?.name || verified.user.email?.split('@')[0] || 'Usuário',
-              email: verified.user.email || '',
-              role: verified.user.user_metadata?.role || 'admin',
-              adminId: verified.user.user_metadata?.adminId,
-              permissions: verified.user.user_metadata?.permissions,
-              companyType: normalizeCompanyType(verified.user.user_metadata?.companyType),
-              features: normalizeFeatures(verified.user.user_metadata?.features),
-              profile: typeof verified.user.user_metadata?.profile === 'string' ? verified.user.user_metadata.profile : undefined,
-              avatar: verified.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${verified.user.email}&background=random`
-            });
+              const baseUser: User = {
+                id: verified.user.id,
+                name: verified.user.user_metadata?.name || verified.user.email?.split('@')[0] || 'Usuário',
+                email: verified.user.email || '',
+                role: verified.user.user_metadata?.role || 'admin',
+                adminId: verified.user.user_metadata?.adminId,
+                permissions: verified.user.user_metadata?.permissions,
+                companyType: normalizeCompanyType(verified.user.user_metadata?.companyType),
+                features: normalizeFeatures(verified.user.user_metadata?.features),
+                profile: typeof verified.user.user_metadata?.profile === 'string' ? verified.user.user_metadata.profile : undefined,
+                avatar: verified.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${verified.user.email}&background=random`
+              }
+
+              const next = await enrichUserWithTenant(baseUser)
+              setUser(next)
+              localStorage.setItem('whatch_pro_user', JSON.stringify(next))
             }
           }
 
@@ -87,18 +119,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             if (session?.user) {
-              setUser({
-                id: session.user.id,
-                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário',
-                email: session.user.email || '',
-                role: session.user.user_metadata?.role || 'admin',
-                adminId: session.user.user_metadata?.adminId,
-                permissions: session.user.user_metadata?.permissions,
-                companyType: normalizeCompanyType(session.user.user_metadata?.companyType),
-                features: normalizeFeatures(session.user.user_metadata?.features),
-                profile: typeof session.user.user_metadata?.profile === 'string' ? session.user.user_metadata.profile : undefined,
-                avatar: session.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${session.user.email}&background=random`
-              });
+              void (async () => {
+                const baseUser: User = {
+                  id: session.user.id,
+                  name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário',
+                  email: session.user.email || '',
+                  role: session.user.user_metadata?.role || 'admin',
+                  adminId: session.user.user_metadata?.adminId,
+                  permissions: session.user.user_metadata?.permissions,
+                  companyType: normalizeCompanyType(session.user.user_metadata?.companyType),
+                  features: normalizeFeatures(session.user.user_metadata?.features),
+                  profile: typeof session.user.user_metadata?.profile === 'string' ? session.user.user_metadata.profile : undefined,
+                  avatar: session.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${session.user.email}&background=random`
+                }
+
+                const next = await enrichUserWithTenant(baseUser)
+                setUser(next)
+                localStorage.setItem('whatch_pro_user', JSON.stringify(next))
+              })()
             } else {
               setUser(null);
             }
@@ -129,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         if (data.user) {
-          const newUser: User = {
+          const baseUser: User = {
             id: data.user.id,
             name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Usuário',
             email: data.user.email || '',
@@ -141,8 +179,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             profile: typeof data.user.user_metadata?.profile === 'string' ? data.user.user_metadata.profile : undefined,
             avatar: data.user.user_metadata?.avatar || `https://ui-avatars.com/api/?name=${data.user.email}&background=random`
           };
-          setUser(newUser);
-          localStorage.setItem('whatch_pro_user', JSON.stringify(newUser));
+          const next = await enrichUserWithTenant(baseUser)
+          setUser(next);
+          localStorage.setItem('whatch_pro_user', JSON.stringify(next));
         }
       } else {
         // Mock login
