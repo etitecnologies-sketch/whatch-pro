@@ -120,16 +120,28 @@ export default function Settings() {
         setIsLoadingTenant(true)
         setTenantOptionsError('')
         try {
-          const { data, error } = await supabase.functions.invoke('user-admin', {
-            body: { action: 'tenants_list' },
-          })
-          if (error) throw error
-          const tenants = Array.isArray((data as any)?.tenants) ? (data as any).tenants : []
-          const list = tenants.map((t: any) => ({
-            id: String(t.id),
-            name: String(t.name || ''),
-            companyType: t.company_type ? String(t.company_type) : null,
-          }))
+          const load = async () => {
+            const { data, error } = await supabase.functions.invoke('user-admin', {
+              body: { action: 'tenants_list' },
+            })
+            if (error) throw error
+            const tenants = Array.isArray((data as any)?.tenants) ? (data as any).tenants : []
+            return tenants.map((t: any) => ({
+              id: String(t.id),
+              name: String(t.name || ''),
+              companyType: t.company_type ? String(t.company_type) : null,
+            }))
+          }
+
+          let list = await load()
+          if (list.length === 0) {
+            const { error: syncError } = await supabase.functions.invoke('user-admin', {
+              body: { action: 'tenants_sync' },
+            })
+            if (!syncError) {
+              list = await load()
+            }
+          }
           setTenantOptions(list)
           if (!selectedTenantId && list.length > 0) setSelectedTenantId(list[0].id)
         } catch (e) {

@@ -231,6 +231,57 @@ serve(async (req) => {
       })
     }
 
+    if (action === "tenants_sync") {
+      if (!isMasterEmail(requester.email)) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+
+      const all = await listAllUsers(supabaseAdmin)
+      const rootAdmins = all.filter(u => u.role === "admin" && !u.adminId)
+
+      const { data: existingRows, error: existingError } = await supabaseAdmin.from("tenants").select("id")
+      if (existingError) throw existingError
+      const existing = new Set<string>((existingRows || []).map((r: any) => String(r.id)))
+
+      const toCreate = rootAdmins
+        .filter(u => !existing.has(u.id))
+        .map(u => {
+          const ct = normalizeCompanyType(u.companyType) ?? "todos"
+          const feats = normalizeFeatures(u.features) ?? defaultFeaturesByCompanyType(ct)
+          return {
+            id: u.id,
+            company_type: ct,
+            features: feats,
+            name: u.name,
+            legal_name: null,
+            document: null,
+            ie: null,
+            phone: null,
+            email: null,
+            cep: null,
+            address: null,
+            number: null,
+            complement: null,
+            neighborhood: null,
+            city: null,
+            state: null,
+          }
+        })
+
+      if (toCreate.length > 0) {
+        const { error: insertError } = await supabaseAdmin.from("tenants").insert(toCreate as any)
+        if (insertError) throw insertError
+      }
+
+      return new Response(JSON.stringify({ created: toCreate.length, totalRootAdmins: rootAdmins.length }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
+
     if (action === "tenant_get") {
       const tenantId = typeof payload?.tenantId === "string" ? payload.tenantId : ""
       if (!tenantId) {
