@@ -15,7 +15,7 @@ function cn(...inputs: ClassValue[]) {
 
 export default function Users() {
   const { user: currentUser, createSubUser } = useAuth()
-  const { transactions } = useData()
+  const { transactions, employees } = useData()
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [isLoadingUsers, setIsLoadingUsers] = useState(false)
@@ -35,6 +35,7 @@ export default function Users() {
     tenantId: '',
     companyType: 'todos' as CompanyTypeId,
     profile: 'todos' as UserProfileId,
+    employeeId: '',
     companyName: '',
     companyLegalName: '',
     companyDocument: '',
@@ -241,6 +242,9 @@ export default function Users() {
   }
 
   const tenantCompanyType = getTenantCompanyType()
+  const employeeOptions = employees
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
 
   const loadUsers = async () => {
     if (!currentUser) return
@@ -331,6 +335,7 @@ export default function Users() {
         const permissions = safeFormData.role === 'sub-user' ? safeFormData.permissions : undefined
         const updates: any = { name: safeFormData.name, role: safeFormData.role, adminId, permissions }
         if (safeFormData.role === 'sub-user') updates.profile = safeFormData.profile
+        if (safeFormData.role === 'sub-user') updates.employeeId = safeFormData.employeeId
 
         if (hasSupabase) {
           const payload: any = { action: 'update', userId: editingUser.id, updates }
@@ -394,7 +399,8 @@ export default function Users() {
           isMaster ? (formData.tenantId || undefined) : undefined,
           isMaster && formData.role === 'admin' && !formData.tenantId ? formData.companyType : undefined,
           formData.role === 'sub-user' ? formData.profile : undefined,
-          tenant
+          tenant,
+          formData.role === 'sub-user' ? (formData.employeeId || undefined) : undefined
         )
 
         if (createdUser) {
@@ -424,6 +430,7 @@ export default function Users() {
         tenantId: user.adminId ? resolveRootTenantId(user, idx) : '',
         companyType: normalizeCompanyType(user.companyType) || 'todos',
         profile: (typeof user.profile === 'string' ? (user.profile as UserProfileId) : 'todos'),
+        employeeId: (typeof (user as any).employeeId === 'string' ? (user as any).employeeId : ''),
         companyName: '',
         companyLegalName: '',
         companyDocument: '',
@@ -449,6 +456,7 @@ export default function Users() {
         tenantId: isMaster ? (companyAdmins[0]?.id || '') : (currentTenantId || ''),
         companyType: 'todos',
         profile: 'todos',
+        employeeId: '',
         companyName: '',
         companyLegalName: '',
         companyDocument: '',
@@ -884,6 +892,35 @@ export default function Users() {
                       >
                         {profileOptionsByCompanyType(tenantCompanyType).map(p => (
                           <option key={p.id} value={p.id}>{p.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Vincular ao Funcionário</label>
+                    <div className="relative group">
+                      <UserIcon size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors pointer-events-none" />
+                      <select
+                        value={formData.employeeId}
+                        onChange={e => {
+                          const id = e.target.value
+                          setFormData(prev => {
+                            const next: any = { ...prev, employeeId: id }
+                            if (!id) return next
+                            const emp = employees.find(x => x.id === id)
+                            if (!emp) return next
+                            if (!editingUser) {
+                              if (typeof emp.name === 'string' && emp.name.trim()) next.name = emp.name
+                              if (typeof emp.email === 'string' && emp.email.trim() && (!next.email || !String(next.email).includes('@'))) next.email = emp.email
+                            }
+                            return next
+                          })
+                        }}
+                        className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-0 rounded-2xl focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-bold shadow-inner appearance-none"
+                      >
+                        <option value="">Sem vínculo (usar nome do usuário)</option>
+                        {employeeOptions.map(emp => (
+                          <option key={emp.id} value={emp.id}>{emp.name}{emp.status === 'inactive' ? ' (Inativo)' : ''} ({emp.role})</option>
                         ))}
                       </select>
                     </div>

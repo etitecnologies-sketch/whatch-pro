@@ -13,6 +13,7 @@ type AppUser = {
   name: string
   role: "admin" | "sub-user"
   adminId?: string
+  employeeId?: string
   permissions?: string[]
   avatar?: string
   companyType?: string
@@ -121,6 +122,7 @@ const toAppUser = (u: AuthUserRow): AppUser => {
     name: (typeof meta.name === "string" && meta.name.trim()) ? meta.name : (u.email?.split("@")[0] || "Usuário"),
     role: normalizeRole(meta.role),
     adminId: typeof meta.adminId === "string" ? meta.adminId : undefined,
+    employeeId: typeof (meta as any).employeeId === "string" ? String((meta as any).employeeId) : undefined,
     permissions: normalizePermissions(meta.permissions),
     avatar: typeof meta.avatar === "string" ? meta.avatar : undefined,
     companyType,
@@ -374,6 +376,9 @@ serve(async (req) => {
       const requestedCompanyType = normalizeCompanyType(payload?.companyType) ?? "todos"
       const requestedFeatures = normalizeFeatures(payload?.features) ?? defaultFeaturesByCompanyType(requestedCompanyType)
       const profile = typeof payload?.profile === "string" ? payload.profile : undefined
+      const employeeId = role === "sub-user" && typeof payload?.employeeId === "string" && payload.employeeId.trim()
+        ? payload.employeeId.trim()
+        : undefined
       const tenant = (payload?.tenant || {}) as Record<string, unknown>
 
       if (!name || !email || !password) {
@@ -422,6 +427,7 @@ serve(async (req) => {
           companyType: nextCompanyType,
           features: nextFeatures,
           profile: role === "sub-user" ? profile : undefined,
+          employeeId: role === "sub-user" ? employeeId : undefined,
         },
       })
 
@@ -497,6 +503,11 @@ serve(async (req) => {
         })
       }
 
+      const { data: targetUserData, error: targetUserError } = await supabaseAdmin.auth.admin.getUserById(userId)
+      if (targetUserError || !targetUserData?.user) throw (targetUserError || new Error("Usuário não encontrado"))
+
+      const prevMeta = (targetUserData.user.user_metadata || {}) as Record<string, unknown>
+
       const nextRole = normalizeRole(updates.role ?? target.role)
       const rawAdminId = (updates.adminId as any)
       const nextAdminId =
@@ -509,20 +520,39 @@ serve(async (req) => {
       const nextProfile = nextRole === "sub-user"
         ? (typeof updates.profile === "string" && updates.profile.trim() ? updates.profile.trim() : (typeof (target as any).profile === "string" ? (target as any).profile : undefined))
         : undefined
-
-      const { data: targetUserData, error: targetUserError } = await supabaseAdmin.auth.admin.getUserById(userId)
-      if (targetUserError || !targetUserData?.user) throw (targetUserError || new Error("Usuário não encontrado"))
-
-      const prevMeta = (targetUserData.user.user_metadata || {}) as Record<string, unknown>
+      const hasEmployeeUpdate = Object.prototype.hasOwnProperty.call(updates, "employeeId")
+      const rawEmployeeId = (updates as any).employeeId
+      const fallbackEmployeeId = (() => {
+        const fromPrev = typeof (prevMeta as any)?.employeeId === "string" && String((prevMeta as any).employeeId).trim()
+          ? String((prevMeta as any).employeeId).trim()
+          : undefined
+        if (fromPrev) return fromPrev
+        const fromTarget = typeof (target as any).employeeId === "string" && String((target as any).employeeId).trim()
+          ? String((target as any).employeeId).trim()
+          : undefined
+        return fromTarget
+      })()
+      const nextEmployeeId = nextRole === "sub-user"
+        ? (hasEmployeeUpdate
+            ? (typeof rawEmployeeId === "string" && String(rawEmployeeId).trim() ? String(rawEmployeeId).trim() : undefined)
+            : fallbackEmployeeId)
+        : undefined
 
       const nextMeta: Record<string, unknown> = {
         ...prevMeta,
         name: typeof updates.name === "string" && updates.name.trim() ? updates.name.trim() : (typeof prevMeta.name === "string" ? prevMeta.name : target.name),
         role: nextRole,
         adminId: nextAdminId,
-        permissions: nextPermissions,
-        profile: nextProfile,
         avatar: typeof updates.avatar === "string" ? updates.avatar : (typeof prevMeta.avatar === "string" ? prevMeta.avatar : target.avatar),
+      }
+      if (nextRole === "sub-user") {
+        nextMeta.permissions = nextPermissions
+        nextMeta.profile = nextProfile
+        nextMeta.employeeId = nextEmployeeId
+      } else {
+        delete (nextMeta as any).permissions
+        delete (nextMeta as any).profile
+        delete (nextMeta as any).employeeId
       }
 
       const updatePayload: Record<string, unknown> = { user_metadata: nextMeta }

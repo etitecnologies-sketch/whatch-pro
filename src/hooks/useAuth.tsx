@@ -32,7 +32,8 @@ interface AuthContextType {
       neighborhood?: string
       city?: string
       state?: string
-    }
+    },
+    employeeId?: string
   ) => Promise<{ id: string; email: string }>;
   updateUserMetadata: (updates: Record<string, any>) => Promise<void>;
   isLoading: boolean;
@@ -98,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 email: verified.user.email || '',
                 role: verified.user.user_metadata?.role || 'admin',
                 adminId: verified.user.user_metadata?.adminId,
+                employeeId: typeof verified.user.user_metadata?.employeeId === 'string' ? verified.user.user_metadata.employeeId : undefined,
                 permissions: verified.user.user_metadata?.permissions,
                 companyType: normalizeCompanyType(verified.user.user_metadata?.companyType),
                 features: normalizeFeatures(verified.user.user_metadata?.features),
@@ -129,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   email: session.user.email || '',
                   role: session.user.user_metadata?.role || 'admin',
                   adminId: session.user.user_metadata?.adminId,
+                  employeeId: typeof session.user.user_metadata?.employeeId === 'string' ? session.user.user_metadata.employeeId : undefined,
                   permissions: session.user.user_metadata?.permissions,
                   companyType: normalizeCompanyType(session.user.user_metadata?.companyType),
                   features: normalizeFeatures(session.user.user_metadata?.features),
@@ -176,6 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: data.user.email || '',
             role: data.user.user_metadata?.role || 'admin',
             adminId: data.user.user_metadata?.adminId,
+            employeeId: typeof data.user.user_metadata?.employeeId === 'string' ? data.user.user_metadata.employeeId : undefined,
             permissions: Array.isArray(data.user.user_metadata?.permissions) ? data.user.user_metadata.permissions : undefined,
             companyType: normalizeCompanyType(data.user.user_metadata?.companyType),
             features: normalizeFeatures(data.user.user_metadata?.features),
@@ -269,7 +273,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       neighborhood?: string
       city?: string
       state?: string
-    }
+    },
+    employeeId?: string
   ) => {
     if (!hasSupabase) {
       throw new Error('Supabase não configurado. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Vercel.');
@@ -385,6 +390,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               features,
               profile: role === 'sub-user' ? (profile || undefined) : undefined,
               tenant: tenantPayload,
+              employeeId: role === 'sub-user' ? (employeeId || undefined) : undefined,
             }),
           })
           if (!res.ok) {

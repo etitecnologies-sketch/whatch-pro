@@ -4,6 +4,7 @@ export interface User {
   email: string;
   role: 'admin' | 'sub-user';
   adminId?: string; // Link to the main admin (Multi-tenant hierarchy)
+  employeeId?: string; // Link to Employee (optional)
   avatar?: string;
   password?: string;
   permissions?: string[]; // Array of allowed modules (e.g., ['clients', 'inventory', 'quotations', 'appearance'])

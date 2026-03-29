@@ -7,7 +7,7 @@ import { useSEFAZ } from '../hooks/useSEFAZ'
 import { supabase } from '../lib/supabase'
 
 export default function PDV() {
-  const { products, clients, sales, addTransaction, addSale, voidSale, addStockMovements, updateProduct } = useData()
+  const { products, clients, sales, employees, addTransaction, addSale, voidSale, addStockMovements, updateProduct } = useData()
   const { user } = useAuth()
   const { configuracaoSEFAZ } = useSEFAZ()
   const [cart, setCart] = useState<Array<{ product: Product; quantity: number }>>([])
@@ -27,6 +27,15 @@ export default function PDV() {
   const cashInputRef = useRef<HTMLInputElement>(null)
 
   const tenantId = user ? (user.adminId || user.id) : ''
+  const cashierName = useMemo(() => {
+    if (!user) return ''
+    const empId = String(user.employeeId || '').trim()
+    if (empId) {
+      const emp = employees.find(e => e.id === empId)
+      if (emp?.name) return emp.name
+    }
+    return user.name
+  }, [employees, user])
   const [tenantLogoUrl, setTenantLogoUrl] = useState<string>('')
   const logoUrl = tenantLogoUrl || configuracaoSEFAZ?.logoUrl || ''
 
@@ -692,10 +701,18 @@ export default function PDV() {
       <div className="flex-1 flex flex-col glass rounded-3xl p-6 border border-white/10 overflow-hidden">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-black text-white flex items-center gap-3">
-              <ShoppingCart className="text-primary" />
-              Frente de Caixa
-            </h2>
+            <div>
+              <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                <ShoppingCart className="text-primary" />
+                Frente de Caixa
+              </h2>
+              {cashierName && (
+                <div className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                  <User size={14} className="text-slate-500" />
+                  Caixa: <span className="text-white">{cashierName}</span>
+                </div>
+              )}
+            </div>
             {logoUrl && showLogo && (
               <img
                 src={logoUrl}
